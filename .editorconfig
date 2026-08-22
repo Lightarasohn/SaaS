@@ -1,0 +1,3 @@
+[*.cs]
+# Namespace'lerin klasör yapısıyla uyuşmamasını bir "uyarı" olarak işaretle
+dotnet_diagnostic.IDE0130.severity = warning

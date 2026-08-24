@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using CMS.Models;
+using SaaS.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CMS.Database.Contexts.Master;
+namespace SaaS.Database.Contexts.Master;
 
 public partial class MasterContext : DbContext
 {

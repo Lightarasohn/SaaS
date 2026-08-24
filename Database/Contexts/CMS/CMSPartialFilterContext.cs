@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CMS.Microservices.CMS.Models;
-using CMS.Models;
+using SaaS.Microservices.CMS.Models;
+using SaaS.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CMS.Database.Contexts.CMS
+namespace SaaS.Database.Contexts.CMS
 {
     public partial class CMSContext : DbContext
     {

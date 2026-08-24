@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CMS.DTOs;
-using CMS.DTOs.AuthDTOs;
-using CMS.Models;
+using SaaS.DTOs;
+using SaaS.DTOs.AuthDTOs;
+using SaaS.Models;
 
-namespace CMS.Interfaces
+namespace SaaS.Interfaces
 {
     public interface IAuthService
     {

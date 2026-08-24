@@ -1,15 +1,15 @@
-using CMS.Interfaces;
-using CMS.Services;
-using CMS.Validations;
+using SaaS.Interfaces;
+using SaaS.Services;
+using SaaS.Validations;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using CMS.Database.Contexts.Master;
-using static CMS.Validations.AuthValidator;
+using SaaS.Database.Contexts.Master;
+using static SaaS.Validations.AuthValidator;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc;
-using CMS.DTOs;
+using SaaS.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 

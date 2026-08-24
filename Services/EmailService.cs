@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CMS.Interfaces;
+using SaaS.Interfaces;
 using MimeKit;
 using MimeKit.Text;
 using MailKit.Net.Smtp;
 
-namespace CMS.Services
+namespace SaaS.Services
 {
     public class EmailService : IEmailService
     {

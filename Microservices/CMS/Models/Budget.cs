@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace CMS.Microservices.CMS.Models;
+namespace SaaS.Microservices.CMS.Models;
 
 public partial class Budget
 {

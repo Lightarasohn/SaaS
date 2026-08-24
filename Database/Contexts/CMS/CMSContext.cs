@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using CMS.Microservices.CMS.Models;
+using SaaS.Microservices.CMS.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CMS.Database.Contexts.CMS;
+namespace SaaS.Database.Contexts.CMS;
 
 public partial class CMSContext : DbContext
 {

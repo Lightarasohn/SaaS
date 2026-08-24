@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
-namespace CMS.Services
+namespace SaaS.Services
 {
     public class RecoveryKeyService
     {

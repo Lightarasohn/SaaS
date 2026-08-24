@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using CMS.DTOs;
-using CMS.Emails;
-using CMS.Interfaces;
-using CMS.Models;
+using SaaS.DTOs;
+using SaaS.Emails;
+using SaaS.Interfaces;
+using SaaS.Models;
 using Microsoft.EntityFrameworkCore;
-using CMS.Database.Contexts.Master;
-using CMS.DTOs.AuthDTOs;
+using SaaS.Database.Contexts.Master;
+using SaaS.DTOs.AuthDTOs;
 
-namespace CMS.Services
+namespace SaaS.Services
 {
     public class AuthService : IAuthService
     {

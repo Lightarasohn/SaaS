@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CMS.DTOs;
-using CMS.DTOs.AuthDTOs;
-using CMS.Interfaces;
+using SaaS.DTOs;
+using SaaS.DTOs.AuthDTOs;
+using SaaS.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace CMS.Controllers
+namespace SaaS.Controllers
 {
     [ApiController]
     [Route("api/{controller}")]

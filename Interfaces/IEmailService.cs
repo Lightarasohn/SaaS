@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace CMS.Interfaces
+namespace SaaS.Interfaces
 {
     public interface IEmailService
     {

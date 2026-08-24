@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace CMS.Models;
+namespace SaaS.Models;
 
 public partial class UserToken
 {

@@ -1,4 +1,6 @@
+-- ============================================================
 -- MASTER DB (Merkezi Veri Tabanı)
+-- ============================================================
 
 -- 1. SaaS Şirketleri (Tenants)
 CREATE TABLE company (
@@ -10,7 +12,7 @@ CREATE TABLE company (
     CONSTRAINT pk_company PRIMARY KEY (id)
 );
 
--- 2. Abonelik Planları ve Servis Yetkileri (YENİ)
+-- 2. Abonelik Planları ve Servis Yetkileri
 CREATE TABLE subscription_plan (
     id INT GENERATED ALWAYS AS IDENTITY,
     name VARCHAR(255) NOT NULL, -- Örn: "Sadece Bütçe", "Tam Paket (Bütçe+İK)"
@@ -34,10 +36,10 @@ CREATE TABLE company_subscription (
 CREATE TABLE app_role (
     id INT GENERATED ALWAYS AS IDENTITY,
     name VARCHAR(255) NOT NULL,
-    CONSTRAINT pk_app_role PRIMARY KEY (id) 
+    CONSTRAINT pk_app_role PRIMARY KEY (id)
 );
 
-CREATE TABLE app_user ( 
+CREATE TABLE app_user (
     id INT GENERATED ALWAYS AS IDENTITY,
     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     company_id INT NOT NULL,
@@ -45,10 +47,11 @@ CREATE TABLE app_user (
     distributor_id INT, -- MANTIKSAL BAĞLANTI: FK yok, Bütçe DB'deki distributor id'sini tutar. Company Admin için NULL olabilir.
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL, 
-    recovery_key_hash TEXT, 
+    password_hash TEXT NOT NULL,
+    recovery_key_hash TEXT,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    password_changed_at TIMESTAMPTZ,
     create_user INT,
     create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_user INT,
@@ -61,10 +64,10 @@ CREATE TABLE app_user (
 );
 
 -- 4. Doğrulama ve Kurtarma Tokenları
-CREATE TABLE user_token(
+CREATE TABLE user_token (
     id INT GENERATED ALWAYS AS IDENTITY,
     user_id INT NOT NULL,
-    token_hash VARCHAR(512) NOT NULL,
+    token_hash CHAR(64) NOT NULL, -- SHA-256 hex: her zaman tam 64 karakter
     token_type VARCHAR(50) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     used BOOLEAN NOT NULL DEFAULT FALSE,
@@ -73,5 +76,43 @@ CREATE TABLE user_token(
     CONSTRAINT fk_user_to_token FOREIGN KEY (user_id) REFERENCES app_user(id)
 );
 
-CREATE INDEX IX_UserToken_TokenHash ON user_token(token_hash);
+-- 5. Refresh Tokenları (Oturum Yönetimi)
+CREATE TABLE refresh_token (
+    id INT GENERATED ALWAYS AS IDENTITY,
+    user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL, -- SHA-256 hex: her zaman tam 64 karakter
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    replaced_by_token_id INT, -- Rotasyon zinciri: bu token'ın yerine geçen kayıt
+    created_by_ip VARCHAR(45), -- IPv6 max 45 karakter
+    user_agent VARCHAR(512),
+    create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_refresh_token PRIMARY KEY (id),
+    CONSTRAINT fk_user_to_refresh_token FOREIGN KEY (user_id) REFERENCES app_user(id),
+    CONSTRAINT fk_replaced_by_to_refresh_token FOREIGN KEY (replaced_by_token_id) REFERENCES refresh_token(id)
+);
+
+-- ============================================================
+-- INDEX'LER
+-- ============================================================
+
+-- user_token: VerifyAccount / ChangePassword tekil lookup yapıyor
+CREATE UNIQUE INDEX UX_UserToken_TokenHash ON user_token(token_hash);
+-- Login kontrolü ve InvalidateActiveTokensAsync bu üçlüyü filtreliyor
+CREATE INDEX IX_UserToken_UserId_Type_Active ON user_token(user_id, token_type) WHERE used = FALSE;
+-- Temizlik servisi için
 CREATE INDEX IX_UserToken_ExpiresAt ON user_token(expires_at);
+
+-- refresh_token: RefreshAsync tekil lookup yapıyor
+CREATE UNIQUE INDEX UX_RefreshToken_TokenHash ON refresh_token(token_hash);
+-- RevokeAllUserTokensAsync bu filtreyi kullanıyor
+CREATE INDEX IX_RefreshToken_UserId_Active ON refresh_token(user_id) WHERE revoked_at IS NULL;
+-- Temizlik servisi için
+CREATE INDEX IX_RefreshToken_ExpiresAt ON refresh_token(expires_at);
+
+-- ============================================================
+-- BAŞLANGIÇ VERİSİ
+-- ============================================================
+
+-- RoleTypes enum'u ile eşleşmeli: User=1, Admin=2, SuperAdmin=3
+INSERT INTO app_role (name) VALUES ('User'), ('Admin'), ('SuperAdmin');

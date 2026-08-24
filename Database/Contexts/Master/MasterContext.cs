@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using SaaS.Models;
 using Microsoft.EntityFrameworkCore;
+using SaaS.Models;
 
 namespace SaaS.Database.Contexts.Master;
 
@@ -23,6 +23,8 @@ public partial class MasterContext : DbContext
     public virtual DbSet<Company> Companies { get; set; }
 
     public virtual DbSet<CompanySubscription> CompanySubscriptions { get; set; }
+
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
 
@@ -76,6 +78,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+            entity.Property(e => e.PasswordChangedAt).HasColumnName("password_changed_at");
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash");
             entity.Property(e => e.PublicId)
                 .HasDefaultValueSql("gen_random_uuid()")
@@ -148,6 +151,49 @@ public partial class MasterContext : DbContext
                 .HasConstraintName("fk_plan_to_subscription");
         });
 
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("pk_refresh_token");
+
+            entity.ToTable("refresh_token");
+
+            entity.HasIndex(e => e.ExpiresAt, "ix_refreshtoken_expiresat");
+
+            entity.HasIndex(e => e.UserId, "ix_refreshtoken_userid_active").HasFilter("(revoked_at IS NULL)");
+
+            entity.HasIndex(e => e.TokenHash, "ux_refreshtoken_tokenhash").IsUnique();
+
+            entity.Property(e => e.Id)
+                .UseIdentityAlwaysColumn()
+                .HasColumnName("id");
+            entity.Property(e => e.CreateDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("create_date");
+            entity.Property(e => e.CreatedByIp)
+                .HasMaxLength(45)
+                .HasColumnName("created_by_ip");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.ReplacedByTokenId).HasColumnName("replaced_by_token_id");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+            entity.Property(e => e.TokenHash)
+                .HasMaxLength(64)
+                .IsFixedLength()
+                .HasColumnName("token_hash");
+            entity.Property(e => e.UserAgent)
+                .HasMaxLength(512)
+                .HasColumnName("user_agent");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.HasOne(d => d.ReplacedByToken).WithMany(p => p.InverseReplacedByToken)
+                .HasForeignKey(d => d.ReplacedByTokenId)
+                .HasConstraintName("fk_replaced_by_to_refresh_token");
+
+            entity.HasOne(d => d.User).WithMany(p => p.RefreshTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_user_to_refresh_token");
+        });
+
         modelBuilder.Entity<SubscriptionPlan>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("pk_subscription_plan");
@@ -172,7 +218,9 @@ public partial class MasterContext : DbContext
 
             entity.HasIndex(e => e.ExpiresAt, "ix_usertoken_expiresat");
 
-            entity.HasIndex(e => e.TokenHash, "ix_usertoken_tokenhash");
+            entity.HasIndex(e => new { e.UserId, e.TokenType }, "ix_usertoken_userid_type_active").HasFilter("(used = false)");
+
+            entity.HasIndex(e => e.TokenHash, "ux_usertoken_tokenhash").IsUnique();
 
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
@@ -182,7 +230,8 @@ public partial class MasterContext : DbContext
                 .HasColumnName("create_date");
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
             entity.Property(e => e.TokenHash)
-                .HasMaxLength(512)
+                .HasMaxLength(64)
+                .IsFixedLength()
                 .HasColumnName("token_hash");
             entity.Property(e => e.TokenType)
                 .HasMaxLength(50)

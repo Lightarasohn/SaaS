@@ -10,6 +10,11 @@ using static SaaS.Validations.AuthValidator;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc;
 using SaaS.DTOs;
+using SaaS.Emails;
+using SaaS.Utils;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +46,7 @@ builder.Services.AddSwaggerGen();
 
 // DATABASE
 builder.Services.AddDbContext<MasterContext>(option => 
-    option.UseNpgsql(builder.Configuration.GetConnectionString("CMSConnection") 
+    option.UseNpgsql(builder.Configuration.GetConnectionString("MasterConnection") 
                      ?? throw new NpgsqlException("No connection string found in project!")
     )
 );
@@ -51,12 +56,43 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterToCompanyValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithCompanyValidator>();
 
+// CONFIGURES
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
 // DI (Repositories)
 
 // DI (Services)
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddHostedService<EmailBackgroundService>();
 
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings yapılandırması eksik.");
+
+if (Encoding.UTF8.GetByteCount(jwtSettings.SigningKey) < 32)
+    throw new InvalidOperationException("JwtSettings:SigningKey en az 32 byte olmalıdır.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+
+            // Varsayılan 5 dakika: 15 dk'lık token fiilen 20 dk yaşar
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -70,8 +106,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
 app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

@@ -7,11 +7,12 @@ using SaaS.DTOs.AuthDTOs;
 using SaaS.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SaaS.Controllers
 {
     [ApiController]
-    [Route("api/{controller}")]
+    [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -20,23 +21,27 @@ namespace SaaS.Controllers
             _authService = authService;
         }
 
-        [HttpPost]
-        [Route("/login")]
+        [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO loginDTO)
         {
             try
             {
-                var loggedInResult = await _authService.Login(loginDTO);
-                return Ok(loggedInResult);
+                var result = await _authService.Login(loginDTO, GetIp(), GetUserAgent());
+                if (!result.IsSuccess) return BadRequest(result);
+
+                SetRefreshCookie(result.Data!.RefreshToken, result.Data.RefreshExpiresAt);
+
+                return Ok(Result<string>.Success(result.Data.AccessToken, result.Message));
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"FAIL ON \"auth/login\": {ex.Message}");
                 return BadRequest(Result<string>.Fail());
             }
         }
 
         [HttpPost]
-        [Route("/register/with/company")]
+        [Route("register/with/company")]
         public async Task<IActionResult> RegisterWithCompany(RegisterWithCompanyDTO registerWithCompanyDTO)
         {
             try
@@ -46,12 +51,13 @@ namespace SaaS.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(Result<string>.Fail(ex.Message));
+                Console.WriteLine($"FAIL ON \"auth/register/with/company\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
             }
         }
 
         [HttpPost]
-        [Route("/register/to/company")]
+        [Route("register/to/company")]
         public async Task<IActionResult> RegisterToCompany(RegisterToCompanyDTO registerToCompanyDTO)
         {
             try
@@ -59,25 +65,140 @@ namespace SaaS.Controllers
                 var registerToCompanyResult = await _authService.RegisterToCompany(registerToCompanyDTO);
                 return Ok(registerToCompanyResult);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"FAIL ON \"auth/register/to/company\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
+        [HttpGet]
+        [Route("verify-account")]
+        public async Task<IActionResult> VerifyAccount([FromQuery] string rawToken)
+        {
+            try
+            {
+                var verifyAccountResult = await _authService.VerifyAccount(rawToken);
+                return Ok(verifyAccountResult);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/verify-account\": {ex.Message}");
                 return BadRequest(Result<string>.Fail());
             }
         }
 
         [HttpPost]
-        [Route("/verify-account")]
-        public async Task<IActionResult> VerifyAccount([FromQuery] string publicId)
+        [Route("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO forgotPasswordDTO)
         {
             try
             {
-                var verifyAccountResult = await _authService.VerifyAccount(publicId);
-                return Ok(verifyAccountResult);
+                var forgotPasswordResult = await _authService.ForgotPassword(forgotPasswordDTO);
+                return Ok(forgotPasswordResult);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"FAIL ON \"auth/forgot-password\": {ex.Message}");
                 return BadRequest(Result<string>.Fail());
             }
+        }
+
+        [HttpPost]
+        [Route("change-password")]
+        public async Task<IActionResult> ChangePassword([FromQuery] string token, [FromBody] ChangePasswordDTO changePasswordDTO)
+        {
+            try
+            {
+                var changePasswordResult = await _authService.ChangePassword(token, changePasswordDTO);
+                return Ok(changePasswordResult);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/change-password\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
+        [HttpGet]
+        [Route("validate-change-password")]
+        public async Task<IActionResult> ValidateChangePassword([FromQuery] string token)
+        {
+            try
+            {
+                var validateChangePasswordResult = await _authService.ValidateChangePassword(token);
+                return Ok(validateChangePasswordResult);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/validate-change-password\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            try
+            {
+                string? refreshToken = Request.Cookies["refreshToken"];
+
+                var result = await _authService.RefreshAsync(refreshToken ?? "", GetIp(), GetUserAgent());
+                if (!result.IsSuccess)
+                {
+                    Response.Cookies.Delete("refreshToken");
+                    return Unauthorized(result);
+                }
+
+                SetRefreshCookie(result.Data!.RefreshToken, result.Data.RefreshExpiresAt);
+                return Ok(Result<string>.Success(result.Data.AccessToken, result.Message));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/refresh\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                string? refreshToken = Request.Cookies["refreshToken"];
+                if (!string.IsNullOrEmpty(refreshToken))
+                    await _authService.RevokeRefreshTokenAsync(refreshToken);
+
+                Response.Cookies.Delete("refreshToken");
+                return Ok(Result<string>.Success("Çıkış yapıldı"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/logout\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
+        private void SetRefreshCookie(string refreshToken, DateTime expiresAt)
+        {
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = false,
+                Secure = false,                      // FRONTEND HTTPS DEĞİL!
+                SameSite = SameSiteMode.Strict,
+                Expires = expiresAt,
+                Path = "/api/auth"
+            });
+        }
+
+        private string? GetIp()
+        {
+            return HttpContext.Connection.RemoteIpAddress?.ToString();
+        }
+        private string? GetUserAgent()
+        {
+            return Request.Headers.UserAgent.ToString();
         }
     }
 }

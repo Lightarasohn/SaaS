@@ -27,6 +27,8 @@ public partial class AppUser
 
     public bool IsDeleted { get; set; }
 
+    public DateTime? PasswordChangedAt { get; set; }
+
     public int? CreateUser { get; set; }
 
     public DateTime CreateDate { get; set; }
@@ -40,6 +42,8 @@ public partial class AppUser
     public DateTime? DeleteDate { get; set; }
 
     public virtual Company Company { get; set; } = null!;
+
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
     public virtual AppRole Role { get; set; } = null!;
 

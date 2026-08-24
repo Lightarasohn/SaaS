@@ -60,5 +60,27 @@ namespace SaaS.Validations
                     .EmailAddress().WithMessage("Geçerli bir e-posta giriniz");
             }
         }
+        public class ForgotPasswordValidator : AbstractValidator<ForgotPasswordDTO>
+        {
+            public ForgotPasswordValidator()
+            {
+                RuleFor(r => r.Email)
+                    .NotEmpty().WithMessage("E-posta boş bırakılamaz")
+                    .EmailAddress().WithMessage("Geçerli bir e-posta adresi giriniz");
+            }
+        }
+        public class ChangePasswordValidator : AbstractValidator<ChangePasswordDTO>
+        {
+            public ChangePasswordValidator()
+            {
+                RuleFor(r => r.NewPassword)
+                    .NotEmpty().WithMessage("Parola boş bırakılamaz")
+                    .MinimumLength(8).WithMessage("Parola en az 8 karakter olmalıdır")
+                    .MaximumLength(32).WithMessage("Parola en fazla 32 karakter olmalıdır")
+                    .Matches("[A-Z]").WithMessage("Parola en az bir büyük harf içermelidir.")
+                    .Matches("[a-z]").WithMessage("Parola en az bir küçük harf içermelidir.")
+                    .Matches("[0-9]").WithMessage("Parola en az bir rakam içermelidir.");
+            }
+        }
     }
 }

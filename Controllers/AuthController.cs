@@ -147,7 +147,7 @@ namespace SaaS.Controllers
                 var result = await _authService.RefreshAsync(refreshToken ?? "", GetIp(), GetUserAgent());
                 if (!result.IsSuccess)
                 {
-                    Response.Cookies.Delete("refreshToken");
+                    Response.Cookies.Delete("refreshToken", RefreshCookieOptions());
                     return Unauthorized(result);
                 }
 
@@ -162,7 +162,6 @@ namespace SaaS.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize]
         public async Task<IActionResult> Logout()
         {
             try
@@ -171,7 +170,7 @@ namespace SaaS.Controllers
                 if (!string.IsNullOrEmpty(refreshToken))
                     await _authService.RevokeRefreshTokenAsync(refreshToken);
 
-                Response.Cookies.Delete("refreshToken");
+                Response.Cookies.Delete("refreshToken", RefreshCookieOptions());
                 return Ok(Result<string>.Success("Çıkış yapıldı"));
             }
             catch (Exception ex)
@@ -200,16 +199,19 @@ namespace SaaS.Controllers
             }
         }
 
+        private static CookieOptions RefreshCookieOptions() => new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,                    // FRONTEND HTTPS DEĞİL!
+            SameSite = SameSiteMode.Strict,
+            Path = "/api/auth"
+        };
+
         private void SetRefreshCookie(string refreshToken, DateTime expiresAt)
         {
-            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,                      // FRONTEND HTTPS DEĞİL!
-                SameSite = SameSiteMode.Strict,
-                Expires = expiresAt,
-                Path = "/api/auth"
-            });
+            var options = RefreshCookieOptions();
+            options.Expires = expiresAt;
+            Response.Cookies.Append("refreshToken", refreshToken, options);
         }
 
         private string? GetIp()

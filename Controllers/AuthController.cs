@@ -208,7 +208,7 @@ namespace SaaS.Controllers
                 Secure = false,                      // FRONTEND HTTPS DEĞİL!
                 SameSite = SameSiteMode.Strict,
                 Expires = expiresAt,
-                // Path = "/api/auth"
+                Path = "/api/auth"
             });
         }
 

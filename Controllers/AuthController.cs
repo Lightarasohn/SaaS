@@ -8,6 +8,7 @@ using SaaS.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace SaaS.Controllers
 {
@@ -180,6 +181,25 @@ namespace SaaS.Controllers
             }
         }
 
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> Me()
+        {
+            try
+            {
+                string publicId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ?? "";
+
+                var getMeResult = await _authService.GetMe(publicId);
+
+                return Ok(getMeResult);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FAIL ON \"auth/me\": {ex.Message}");
+                return BadRequest(Result<string>.Fail());
+            }
+        }
+
         private void SetRefreshCookie(string refreshToken, DateTime expiresAt)
         {
             Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
@@ -188,7 +208,7 @@ namespace SaaS.Controllers
                 Secure = false,                      // FRONTEND HTTPS DEĞİL!
                 SameSite = SameSiteMode.Strict,
                 Expires = expiresAt,
-                Path = "/api/auth"
+                // Path = "/api/auth"
             });
         }
 

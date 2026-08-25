@@ -502,5 +502,34 @@ namespace SaaS.Services
                 .Where(rt => rt.TokenHash == hash && rt.RevokedAt == null)
                 .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
         }
+
+        public async Task<Result<MeDTO>> GetMe(string publicId)
+        {
+            if (!Guid.TryParse(publicId, out Guid userPublicId))
+                return Result<MeDTO>.Fail("Geçersiz oturum");
+            
+            var userDto = await _context.AppUsers
+                                    .AsNoTracking()
+                                    .Include(u => u.Company)
+                                    .Include(u => u.Role)
+                                    .Select(u => new MeDTO
+                                        {
+                                            PublicId = u.PublicId,
+                                            Name = u.Name,
+                                            Email = u.Email,
+                                            IsVerified = u.IsVerified,
+                                            PasswordChangedAt = u.PasswordChangedAt,
+                                            CreateDate = u.CreateDate,
+                                            CompanyName = u.Company.Name,
+                                            RoleName = u.Role.Name
+                                        })
+                                    .FirstOrDefaultAsync(u =>  u.PublicId == userPublicId);
+            
+            if (userDto == null)
+                return Result<MeDTO>.Fail("Kullanıcı bulunamadı");
+
+            return Result<MeDTO>.Success(userDto);
+
+        }
     }
 }

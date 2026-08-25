@@ -19,5 +19,6 @@ namespace SaaS.Interfaces
         public Task<Result<string>> ValidateChangePassword(string rawToken);
         public Task<Result<TokenPair>> RefreshAsync(string rawRefreshToken, string? ip, string? userAgent);
         public Task RevokeRefreshTokenAsync(string rawRefreshToken);
+        public Task<Result<MeDTO>> GetMe(string publicId);
     }
 }

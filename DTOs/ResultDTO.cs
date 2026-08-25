@@ -71,6 +71,16 @@ namespace SaaS.DTOs
             };
         }
 
+        public static Result<T> Success(T data)
+        {
+            return new Result<T>
+            {
+                IsSuccess = true,
+                Data = data,
+                Message = "İşlem başarılı"
+            };
+        }
+
         public static Result<T> Success()
         {
             return new Result<T>

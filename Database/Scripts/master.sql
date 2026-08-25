@@ -116,3 +116,4 @@ CREATE INDEX IX_RefreshToken_ExpiresAt ON refresh_token(expires_at);
 
 -- RoleTypes enum'u ile eşleşmeli: User=1, Admin=2, SuperAdmin=3
 INSERT INTO app_role (name) VALUES ('User'), ('Admin'), ('SuperAdmin');
+INSERT INTO subscription_plan (name, has_budget_access, has_hr_access) VALUES ('FREE', false, false), ('CMS', true, false), ('HR', false, true), ('FULL', true, true);

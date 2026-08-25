@@ -204,7 +204,7 @@ namespace SaaS.Controllers
         {
             Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
             {
-                HttpOnly = false,
+                HttpOnly = true,
                 Secure = false,                      // FRONTEND HTTPS DEĞİL!
                 SameSite = SameSiteMode.Strict,
                 Expires = expiresAt,

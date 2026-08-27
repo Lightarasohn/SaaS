@@ -17,26 +17,34 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
+using SaaS.Handlers;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
-    .ConfigureApiBehaviorOptions(option 
-        => option.InvalidModelStateResponseFactory = context =>
+    .ConfigureApiBehaviorOptions(option =>
+        option.InvalidModelStateResponseFactory = context =>
         {
-            // 1. ModelState içindeki tüm hata mesajlarını seçip düz bir liste (List<string>) yapıyoruz
-            var errorMessages = context.ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
+            var errors = new Dictionary<string, string[]>();
 
-            // 2. Bu mesajları tek bir string halinde birleştiriyoruz 
-            // (Aralarına virgül, boşluk veya " - " koyabilirsin)
-            var combinedMessage = string.Join(" | ", errorMessages);
+            foreach (var entry in context.ModelState)
+            {
+                if (entry.Value.Errors.Count == 0)
+                    continue;
 
-            // 3. Kendi Result protokolünün fail metoduna mesajı yolluyoruz
-            // Not: Fail metodunun parametresine göre burayı uyarlayabilirsin.
-            var result = Result<string>.Fail(combinedMessage); 
+                var key = string.IsNullOrEmpty(entry.Key)
+                    ? "genel"
+                    : JsonNamingPolicy.CamelCase.ConvertName(entry.Key);
+
+                var messages = entry.Value.Errors
+                    .Select(e => e.ErrorMessage)
+                    .ToArray();
+
+                errors[key] = messages;
+            }
+
+            var result = Result<Dictionary<string, string[]>>.Invalid(errors);
 
             return new BadRequestObjectResult(result);
         });
@@ -47,8 +55,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
 // DATABASE
-builder.Services.AddDbContext<MasterContext>(option => 
-    option.UseNpgsql(builder.Configuration.GetConnectionString("MasterConnection") 
+builder.Services.AddDbContext<MasterContext>(option =>
+    option.UseNpgsql(builder.Configuration.GetConnectionString("MasterConnection")
                      ?? throw new NpgsqlException("No connection string found in project!")
     )
 );
@@ -60,6 +68,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithCompanyValidato
 
 // CONFIGURES
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // DI (Repositories)
 
@@ -98,8 +108,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // CORS
-builder.Services.AddCors(option => 
-        option.AddPolicy("Frontend", 
+builder.Services.AddCors(option =>
+        option.AddPolicy("Frontend",
                 policy =>
                     policy.WithOrigins("http://localhost:5173")
                           .AllowAnyHeader()
@@ -107,6 +117,8 @@ builder.Services.AddCors(option =>
                           .AllowAnyMethod()));
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -118,11 +130,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+
 app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 
 app.Run();

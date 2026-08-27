@@ -27,11 +27,13 @@ namespace SaaS.Services
         private readonly MasterContext _context;
         private readonly IEmailQueue _emailQueue;
         private readonly ITokenService _tokenService;
-        public AuthService(MasterContext context, IEmailQueue emailQueue, IConfiguration configuration, ITokenService tokenService, IOptions<JwtSettings> jwt)
+        private readonly ILogger<AuthService> _logger;
+        public AuthService(MasterContext context, IEmailQueue emailQueue, IConfiguration configuration, ITokenService tokenService, IOptions<JwtSettings> jwt, ILogger<AuthService> logger)
         {
             _context = context;
             _emailQueue = emailQueue;
             _tokenService = tokenService;
+            _logger = logger;
             _frontendBaseUrl = (configuration["FrontendBaseUrl"] ?? throw new InvalidOperationException("FrontendBaseUrl yapılandırması eksik."))
                 .TrimEnd('/');
             _jwt = jwt.Value;
@@ -41,14 +43,10 @@ namespace SaaS.Services
         {
             AppUser? user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
-            if (user == null)
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             {
-                return Result<TokenPair>.Fail("E-posta veya parola yanlış");
-            }
-
-            if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
-            {
-                return Result<TokenPair>.Fail("E-posta veya parola yanlış");
+                _logger.LogWarning("Başarısız giriş denemesi. IP={Ip}", ip);
+                return Result<TokenPair>.Unauthorized("E-posta veya parola yanlış");
             }
 
             if (user.IsVerified == false)
@@ -75,19 +73,19 @@ namespace SaaS.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"E-posta kuyruğa alınmadı: {ex.Message}");
+                        _logger.LogError(ex, "Aktivasyon e-postası kuyruğa alınamadı. UserId={UserId}", user.Id);
 
                         await InvalidateActiveTokensAsync(user.Id, TOKEN_TYPE_ACTIVATION);
 
-                        return Result<TokenPair>.Fail("Hesap aktifleştirilmemiş. Hesap aktifleştirme e-postası gönderilirken bir hata oluştu. Lütfen tekrar giriş yapmayı deneyin.");
+                        return Result<TokenPair>.Fail("Hesap aktifleştirilmemiş. Hesap aktifleştirme e-postası gönderilirken bir hata oluştu. Lütfen tekrar giriş yapmayı deneyin.", ResultStatus.Error);
                     }
                 }
 
-                return Result<TokenPair>.Fail("Hesap aktifleştirilmemiş. Önce Hesabınızı aktifleştirin.");
+                return Result<TokenPair>.Forbidden("Hesap aktifleştirilmemiş. Önce Hesabınızı aktifleştirin.");
             }
 
             var tokens = await IssueTokenPairAsync(user, ip, userAgent);
-
+            _logger.LogInformation("Giriş başarılı. UserId={UserId}, IP={Ip}", user.Id, ip);
             return Result<TokenPair>.Success(tokens, "Giriş Başarılı");
         }
 
@@ -95,7 +93,7 @@ namespace SaaS.Services
         {
             if (await _context.AppUsers.AnyAsync(u => u.Email == registerDTO.Email))
             {
-                return Result<string>.Fail("Bu e-posta kullanılamaz");
+                return Result<string>.Conflict("Bu e-posta kullanılamaz");
             }
 
             string rawRecoveryKey;
@@ -149,11 +147,11 @@ namespace SaaS.Services
 
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-
-                return Result<string>.Fail("Kayıt işlemi sırasında sistemsel bir hata oluştu. Değişiklikler geri alınıyor...");
+                _logger.LogError(ex, "Kayıt başarısız, rollback yapıldı");
+                return Result<string>.Fail("Kayıt işlemi sırasında sistemsel bir hata oluştu. Değişiklikler geri alınıyor...", ResultStatus.Error);
             }
 
             using CancellationTokenSource emailCTS = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -168,13 +166,14 @@ namespace SaaS.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"E-posta kuyruğa alınamadı: {ex.Message}");
+                _logger.LogError(ex, "Kayıt aktivasyon e-postası kuyruğa alınamadı. UserId={UserId}", newUser.Id);
 
                 await InvalidateActiveTokensAsync(newUser.Id, TOKEN_TYPE_ACTIVATION);
 
-                return Result<string>.Success(rawRecoveryKey, "Kayıt işlemi başarılı ancak doğrulama e-postası gönderilirken bir sorun oluştu.");
+                return Result<string>.Success(rawRecoveryKey, "Kayıt işlemi başarılı ancak doğrulama e-postası gönderilirken bir sorun oluştu. Giriş yapmayı deneyin");
             }
-
+            
+            _logger.LogInformation("Kayıt tamamlandı. UserId={UserId}", newUser.Id);
             return Result<string>.Success(rawRecoveryKey, "Başarıyla kayıt olundu. Lütfen giriş yapmadan önce e-postanıza gelen link ile kaydınızı tamamlayınız.");
         }
 
@@ -182,7 +181,7 @@ namespace SaaS.Services
         {
             if (await _context.AppUsers.AnyAsync(u => u.Email == registerDTO.Email))
             {
-                return Result<string>.Fail("Bu e-posta kullanılamaz");
+                return Result<string>.Conflict("Bu e-posta kullanılamaz");
             }
 
             if (!Guid.TryParse(registerDTO.InviteCode, out Guid companyPublicId))
@@ -195,7 +194,7 @@ namespace SaaS.Services
 
             if (targetCompany == null)
             {
-                return Result<string>.Fail("Şirket bulunamadı veya organizasyon şu anda pasif durumda.");
+                return Result<string>.NotFound("Şirket bulunamadı veya organizasyon şu anda pasif durumda.");
             }
 
             string activationToken;
@@ -226,11 +225,11 @@ namespace SaaS.Services
 
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-
-                return Result<string>.Fail("Kayıt işlemi sırasında sistemsel bir hata oluştu. Değişiklikler geri alınıyor...");
+                _logger.LogError(ex, "Kayıt başarısız, rollback yapıldı");
+                return Result<string>.Fail("Kayıt işlemi sırasında sistemsel bir hata oluştu. Değişiklikler geri alınıyor...", ResultStatus.Error);
             }
 
             using CancellationTokenSource emailCTS = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -245,20 +244,20 @@ namespace SaaS.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"E-posta kuyruğa alınamadı: {ex.Message}");
-
+                _logger.LogError(ex, "Kayıt aktivasyon e-postası kuyruğa alınamadı. UserId={UserId}", newUser.Id);
                 await InvalidateActiveTokensAsync(newUser.Id, TOKEN_TYPE_ACTIVATION);
 
                 return Result<string>.Success(rawRecoveryKey, "Kayıt işlemi başarılı ancak doğrulama e-postası gönderilirken bir sorun oluştu.");
             }
-
+            _logger.LogInformation("Kayıt tamamlandı. UserId={UserId}", newUser.Id);
             return Result<string>.Success(rawRecoveryKey, "Başarıyla kayıt olundu.\nLütfen giriş yapmadan önce e-postanıza gelen link ile kaydınızı tamamlayınız.");
         }
 
-        public async Task<Result<string>> VerifyAccount(string rawToken)
+        public async Task<Result> VerifyAccount(string rawToken)
         {
+            _logger.LogDebug("Hesap doğrulama isteği alındı");
             if (string.IsNullOrWhiteSpace(rawToken))
-                return Result<string>.Fail("Geçersiz aktivasyon linki");
+                return Result.Fail("Geçersiz aktivasyon linki");
 
             string hash = SecureTokenService.Hash(rawToken);
 
@@ -266,21 +265,24 @@ namespace SaaS.Services
                 .Include(ut => ut.User)
                 .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == TOKEN_TYPE_ACTIVATION);
 
-            if (token == null || token.Used || token.ExpiresAt <= DateTime.UtcNow)
-                return Result<string>.Fail("Aktivasyon linki geçersiz veya süresi dolmuş");
+            if (token == null)
+                return Result.NotFound("Aktivasyon linki geçersiz");
 
+            if (token.Used || token.ExpiresAt <= DateTime.UtcNow)
+                return Result.NotFound("Aktivasyon linki geçersiz veya süresi dolmuş");
+                
             if (token.User.IsVerified)
             {
                 token.Used = true;
                 await _context.SaveChangesAsync();
-                return Result<string>.Success("Hesap zaten aktifleştirilmiş");
+                return Result.Success("Hesap zaten aktifleştirilmiş");
             }
 
             token.User.IsVerified = true;
             token.Used = true;
             await _context.SaveChangesAsync();
-
-            return Result<string>.Success("Hesap aktifleştirildi");
+            _logger.LogInformation("Hesap aktifleştirildi. UserId={UserId}", token.UserId);
+            return Result.Success("Hesap aktifleştirildi");
         }
 
         private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime)
@@ -301,7 +303,6 @@ namespace SaaS.Services
 
             await _context.UserTokens.AddAsync(userToken);
             await _context.SaveChangesAsync();
-
             return raw;
         }
 
@@ -312,8 +313,9 @@ namespace SaaS.Services
                                 .ExecuteUpdateAsync(s => s.SetProperty(ut => ut.Used, true));
         }
 
-        public async Task<Result<string>> ForgotPassword(ForgotPasswordDTO forgotPasswordDTO)
+        public async Task<Result> ForgotPassword(ForgotPasswordDTO forgotPasswordDTO)
         {
+            _logger.LogDebug("Parola sıfırlama isteği alındı");
             // Kullanıcı var/yok fark etmeksizin aynı cevap (enumeration koruması)
             const string GENERIC_MESSAGE = "E-postanıza parola yenileme linki gönderilmiştir.";
 
@@ -321,7 +323,7 @@ namespace SaaS.Services
                 .FirstOrDefaultAsync(u => u.Email == forgotPasswordDTO.Email);
 
             if (user == null)
-                return Result<string>.Success(GENERIC_MESSAGE);
+                return Result.Success(GENERIC_MESSAGE);
 
             string passwordToken = await CreateUserTokenAsync(
                 user.Id, TOKEN_TYPE_CHANGE_PASSWORD, TimeSpan.FromMinutes(30));
@@ -337,25 +339,26 @@ namespace SaaS.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"E-posta kuyruğa alınamadı: {ex.Message}");
+                _logger.LogError(ex, "Parola sıfırlama e-postası kuyruğa alınamadı. UserId={UserId}", user.Id);
                 await InvalidateActiveTokensAsync(user.Id, TOKEN_TYPE_CHANGE_PASSWORD);
             }
-
-            return Result<string>.Success(GENERIC_MESSAGE);
+            _logger.LogInformation("Parola sıfırlama isteği işlendi. UserId={UserId}", user.Id);
+            return Result.Success(GENERIC_MESSAGE);
         }
 
-        public async Task<Result<string>> ChangePassword(string rawToken, ChangePasswordDTO newPasswordDTO)
+        public async Task<Result> ChangePassword(string rawToken, ChangePasswordDTO newPasswordDTO)
         {
+            _logger.LogDebug("Parola değiştirme isteği alındı");
             UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_CHANGE_PASSWORD);
 
             if (token == null)
-                return Result<string>.Fail("Parola yenileme linki geçersiz veya süresi dolmuş");
+                return Result.Fail("Parola yenileme linki geçersiz veya süresi dolmuş");
 
             if (IsInPasswordCooldown(token.User))
-                return Result<string>.Fail("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
+                return Result.Conflict("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
 
             if (BCrypt.Net.BCrypt.Verify(newPasswordDTO.NewPassword, token.User.PasswordHash))
-                return Result<string>.Fail("Yeni parola eski parola ile aynı olamaz");
+                return Result.Fail("Yeni parola eski parola ile aynı olamaz");
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -368,26 +371,29 @@ namespace SaaS.Services
                 await RevokeAllUserTokensAsync(token.UserId);
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Result<string>.Fail("Parola yenilenirken sistemsel bir hata oluştu.");
+                _logger.LogError(ex, "Parola yenilenemedi, rollback yapıldı. UserId={UserId}", token.UserId);
+                return Result.Fail("Parola yenilenirken sistemsel bir hata oluştu.", ResultStatus.Error);
             }
-
-            return Result<string>.Success("Parolanız yenilenmiştir");
+            _logger.LogInformation("Parola başarıyla yenilendi. UserId={UserId}", token.UserId);
+            return Result.Success("Parolanız yenilenmiştir");
         }
 
-        public async Task<Result<string>> ValidateChangePassword(string rawToken)
+        public async Task<Result> ValidateChangePassword(string rawToken)
         {
+            _logger.LogDebug("Parola yenileme doğrulaması isteği alındı");
             UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_CHANGE_PASSWORD);
 
             if (token == null)
-                return Result<string>.Fail("Parola yenileme linki geçersiz veya süresi dolmuş");
+                return Result.Fail("Parola yenileme linki geçersiz veya süresi dolmuş");
 
             if (IsInPasswordCooldown(token.User))
-                return Result<string>.Fail("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
-
-            return Result<string>.Success("Parola yenilenebilir");
+                return Result.Conflict("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
+            
+            _logger.LogDebug("Parola yenileme doğrulaması başarılı. UserId={UserId}", token.UserId);
+            return Result.Success("Parola yenilenebilir");
         }
 
         private async Task<UserToken?> GetValidTokenAsync(string rawToken, string tokenType)
@@ -436,8 +442,9 @@ namespace SaaS.Services
         
         public async Task<Result<TokenPair>> RefreshAsync(string rawRefreshToken, string? ip, string? userAgent)
         {
+            _logger.LogDebug("Oturum yenileme isteği alındı");
             if (string.IsNullOrWhiteSpace(rawRefreshToken))
-                return Result<TokenPair>.Fail("Geçersiz oturum");
+                return Result<TokenPair>.Unauthorized("Geçersiz oturum");
 
             string hash = SecureTokenService.Hash(rawRefreshToken);
 
@@ -446,21 +453,23 @@ namespace SaaS.Services
                 .FirstOrDefaultAsync(rt => rt.TokenHash == hash);
 
             if (stored == null)
-                return Result<TokenPair>.Fail("Geçersiz oturum");
+                return Result<TokenPair>.Unauthorized("Geçersiz oturum");
 
             // REUSE DETECTION: iptal edilmiş token tekrar sunuldu → sızıntı varsayımı
             if (stored.RevokedAt != null)
             {
                 await RevokeAllUserTokensAsync(stored.UserId);
-                Console.WriteLine($"Refresh token yeniden kullanıldı! UserId={stored.UserId}, IP={ip}");
-                return Result<TokenPair>.Fail("Oturum güvenlik nedeniyle sonlandırıldı. Lütfen tekrar giriş yapın.");
+                _logger.LogWarning(
+                    "Refresh token yeniden kullanıldı, tüm oturumlar iptal edildi. UserId={UserId}, IP={Ip}",
+                    stored.UserId, ip);
+                return Result<TokenPair>.Unauthorized("Oturum güvenlik nedeniyle sonlandırıldı. Lütfen tekrar giriş yapın.");
             }
 
             if (stored.ExpiresAt <= DateTime.UtcNow)
-                return Result<TokenPair>.Fail("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
+                return Result<TokenPair>.Unauthorized("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
 
             if (!stored.User.IsVerified)
-                return Result<TokenPair>.Fail("Hesap aktifleştirilmemiş.");
+                return Result<TokenPair>.Forbidden("Hesap aktifleştirilmemiş.");
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -477,14 +486,15 @@ namespace SaaS.Services
                 stored.RevokedAt = DateTime.UtcNow;
                 stored.ReplacedByTokenId = newId;
                 await _context.SaveChangesAsync();
-
                 await transaction.CommitAsync();
+                _logger.LogInformation("Oturum başarıyla yenilendi. UserId={UserId}, IP={Ip}", stored.UserId, ip);
                 return Result<TokenPair>.Success(newPair, "Token yenilendi");
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return Result<TokenPair>.Fail("Oturum yenilenirken bir hata oluştu.");
+                _logger.LogError(ex, "Oturum yenilenemedi, rollback yapıldı. UserId={UserId}", stored.UserId);
+                return Result<TokenPair>.Fail("Oturum yenilenirken bir hata oluştu.", ResultStatus.Error);
             }
         }
 
@@ -498,20 +508,20 @@ namespace SaaS.Services
         public async Task RevokeRefreshTokenAsync(string rawRefreshToken)
         {
             var hash = SecureTokenService.Hash(rawRefreshToken);
-            await _context.RefreshTokens
+            int affected = await _context.RefreshTokens
                 .Where(rt => rt.TokenHash == hash && rt.RevokedAt == null)
                 .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
+            _logger.LogInformation("Çıkış yapıldı. İptal edilen token sayısı={Count}", affected);
         }
 
         public async Task<Result<MeDTO>> GetMe(string publicId)
         {
+            _logger.LogDebug("Kullanıcı bilgisi isteniyor");
             if (!Guid.TryParse(publicId, out Guid userPublicId))
-                return Result<MeDTO>.Fail("Geçersiz oturum");
+                return Result<MeDTO>.Unauthorized("Geçersiz oturum");
             
             var userDto = await _context.AppUsers
                                     .AsNoTracking()
-                                    .Include(u => u.Company)
-                                    .Include(u => u.Role)
                                     .Select(u => new MeDTO
                                         {
                                             PublicId = u.PublicId,
@@ -526,8 +536,8 @@ namespace SaaS.Services
                                     .FirstOrDefaultAsync(u =>  u.PublicId == userPublicId);
             
             if (userDto == null)
-                return Result<MeDTO>.Fail("Kullanıcı bulunamadı");
-
+                return Result<MeDTO>.NotFound("Kullanıcı bulunamadı");
+            _logger.LogDebug("Kullanıcı bilgisi başarıyla getirildi. PublicId={PublicId}", userDto.PublicId);
             return Result<MeDTO>.Success(userDto);
 
         }

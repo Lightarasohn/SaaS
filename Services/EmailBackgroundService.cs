@@ -11,10 +11,12 @@ namespace SaaS.Services
     {
         private readonly IEmailQueue _emailQueue;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        public EmailBackgroundService(IEmailQueue emailQueue, IServiceScopeFactory serviceScopeFactory)
+        private readonly ILogger<EmailBackgroundService> _logger;
+        public EmailBackgroundService(IEmailQueue emailQueue, IServiceScopeFactory serviceScopeFactory, ILogger<EmailBackgroundService> logger)
         {
             _emailQueue = emailQueue;
             _serviceScopeFactory = serviceScopeFactory;
+            _logger = logger;
         }
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -41,7 +43,7 @@ namespace SaaS.Services
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"SMTP/Email Hatası (deneme {attempt}/3): {ex.Message}");
+                            _logger.LogError($"SMTP/Email Hatası (deneme {attempt}/3): {ex.Message}");
                             if (attempt < 3)
                                 await Task.Delay(TimeSpan.FromSeconds(2 * attempt), stoppingToken);
                         }

@@ -1,94 +1,125 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace SaaS.DTOs
 {
-    public class Result<T>
+    public enum ResultStatus
     {
-        public bool IsSuccess {get; set;}
-        public T Data {get; set;} = default!;
-        public string Message {get; set;} = string.Empty!;
+        Ok = 0,
+        Invalid,          // 400 - doğrulama / iş kuralı
+        Unauthorized,     // 401 - kimlik doğrulanamadı
+        Forbidden,        // 403 - yetki yok
+        NotFound,         // 404
+        Conflict,         // 409 - çakışma (e-posta kayıtlı, cooldown vb.)
+        Error             // 500 - beklenmeyen
+    }
 
-        public static Result<T> Fail(string message, T data)
+    public interface IResult
+    {
+        bool IsSuccess { get; }
+        ResultStatus Status { get; }
+        string Message { get; }
+    }
+
+    public sealed class Result : IResult
+    {
+        public bool IsSuccess { get; }
+
+        [JsonIgnore]
+        public ResultStatus Status { get; }
+
+        public string Message { get; }
+
+        private Result(bool isSuccess, ResultStatus status, string message)
         {
-            return new Result<T>
-            {
-                IsSuccess = false,
-                Data = data,
-                Message = message  
-            };
+            IsSuccess = isSuccess;
+            Status = status;
+            Message = message;
         }
 
-        public static Result<T> Fail(T data)
+        public static Result Success(string message = "İşlem başarılı")
         {
-            return new Result<T>
-            {
-                IsSuccess = false,
-                Data = data,
-                Message = "İşlem başarısız oldu"  
-            };
+            return new Result(true, ResultStatus.Ok, message);
         }
 
-        public static Result<T> Fail(string message)
+        public static Result Fail(string message, ResultStatus status = ResultStatus.Invalid)
         {
-            return new Result<T>
-            {
-                IsSuccess = false,
-                Data = default!,
-                Message = message
-            };
+            return new Result(false, status, message);
+        }
+
+        public static Result NotFound(string message)
+        {
+            return Fail(message, ResultStatus.NotFound);
+        }
+
+        public static Result Conflict(string message)
+        {
+            return Fail(message, ResultStatus.Conflict);
+        }
+
+        public static Result Unauthorized(string message)
+        {
+            return Fail(message, ResultStatus.Unauthorized);
+        }
+
+        public static Result Forbidden(string message)
+        {
+            return Fail(message, ResultStatus.Forbidden);
+        }
+    }
+
+    public sealed class Result<T> : IResult
+    {
+        public bool IsSuccess { get; }
+
+        [JsonIgnore]
+        public ResultStatus Status { get; }
+
+        public string Message { get; }
+
+        public T? Data { get; }
+
+        private Result(bool isSuccess, ResultStatus status, string message, T? data)
+        {
+            IsSuccess = isSuccess;
+            Status = status;
+            Message = message;
+            Data = data;
+        }
+
+        public static Result<T> Success(T data, string message = "İşlem başarılı")
+        {
+            return new Result<T>(true, ResultStatus.Ok, message, data);
+        }
+
+        public static Result<T> Fail(string message, ResultStatus status = ResultStatus.Invalid)
+        {
+            return new Result<T>(false, status, message, default);
         }
         
-        public static Result<T> Fail()
+        public static Result<T> Invalid(T data, string message = "Girdiğiniz bilgileri kontrol edin")
         {
-            return new Result<T>
-            {
-                IsSuccess = false,
-                Data = default!,
-                Message = "İşlem başarısız oldu"  
-            };
-        }
-        
-        public static Result<T> Success(T data, string message)
-        {
-            return new Result<T>
-            {
-                IsSuccess = true,
-                Data = data,
-                Message = message
-            };
+            return new Result<T>(false, ResultStatus.Invalid, message, data);
         }
 
-        public static Result<T> Success(string message)
+        public static Result<T> NotFound(string message)
         {
-            return new Result<T>
-            {
-                IsSuccess = true,
-                Data = default!,
-                Message = message
-            };
+            return Fail(message, ResultStatus.NotFound);
         }
 
-        public static Result<T> Success(T data)
+        public static Result<T> Conflict(string message)
         {
-            return new Result<T>
-            {
-                IsSuccess = true,
-                Data = data,
-                Message = "İşlem başarılı"
-            };
+            return Fail(message, ResultStatus.Conflict);
         }
 
-        public static Result<T> Success()
+        public static Result<T> Unauthorized(string message)
         {
-            return new Result<T>
-            {
-                IsSuccess = true,
-                Data = default!,
-                Message = "İşlem başarılı"
-            };
+            return Fail(message, ResultStatus.Unauthorized);
+        }
+
+        public static Result<T> Forbidden(string message)
+        {
+            return Fail(message, ResultStatus.Forbidden);
         }
     }
 }

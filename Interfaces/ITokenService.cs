@@ -8,7 +8,7 @@ namespace SaaS.Interfaces
 {
     public interface ITokenService
     {
-        string CreateAccessToken(AppUser user);
+        (string Token, DateTimeOffset ExpiresAt) CreateAccessToken(AppUser user);
         (string RawToken, string TokenHash) CreateRefreshToken();
     }
 }

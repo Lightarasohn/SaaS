@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using SaaS.Extensions;
+using SaaS.Utils;
 
 namespace SaaS.Controllers
 {
@@ -29,9 +30,14 @@ namespace SaaS.Controllers
             var result = await _authService.Login(loginDTO, GetIp(), GetUserAgent());
             if (!result.IsSuccess) return result.ToActionResult();
 
-            SetRefreshCookie(result.Data!.RefreshToken, result.Data.RefreshExpiresAt);
+            var tokens = new TokenPair(
+                AccessToken: result.Data!.AccessToken,
+                AccessTokenExpiresAt: result.Data.AccessTokenExpiresAt,
+                RefreshToken: result.Data.RefreshToken,
+                RefreshTokenExpiresAt: result.Data.RefreshTokenExpiresAt
+            );
 
-            return Result<string>.Success(result.Data.AccessToken, result.Message).ToActionResult();
+            return Result<TokenPair>.Success(tokens, result.Message).ToActionResult();
 
         }
 
@@ -53,11 +59,11 @@ namespace SaaS.Controllers
 
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("verify-account")]
-        public async Task<IActionResult> VerifyAccount([FromQuery] string rawToken)
+        public async Task<IActionResult> VerifyAccount([FromBody] VerifyAccountDTO verifyAccountDTO)
         {
-            var verifyAccountResult = await _authService.VerifyAccount(rawToken);
+            var verifyAccountResult = await _authService.VerifyAccount(verifyAccountDTO.RawToken);
             return verifyAccountResult.ToActionResult();
 
         }
@@ -89,31 +95,41 @@ namespace SaaS.Controllers
 
         }
 
-        [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh()
+        [HttpGet]
+        [Route("validate-verify-account")]
+        public async Task<IActionResult> ValidateVerifyAccount([FromQuery] string rawToken)
         {
-            string? refreshToken = Request.Cookies["refreshToken"];
+            var validateVerifyAccountResult = await _authService.ValidateVerifyAccount(rawToken);
+            return validateVerifyAccountResult.ToActionResult();
+        }
 
-            var result = await _authService.RefreshAsync(refreshToken ?? "", GetIp(), GetUserAgent());
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshDTO refreshDTO)
+        {
+
+            var result = await _authService.RefreshAsync(refreshDTO.RefreshToken ?? "", GetIp(), GetUserAgent());
             if (!result.IsSuccess)
             {
-                Response.Cookies.Delete("refreshToken", RefreshCookieOptions());
                 return result.ToActionResult();
             }
 
-            SetRefreshCookie(result.Data!.RefreshToken, result.Data.RefreshExpiresAt);
-            return Result<string>.Success(result.Data.AccessToken, result.Message).ToActionResult();
+            var tokens = new TokenPair(
+                AccessToken: result.Data!.AccessToken,
+                AccessTokenExpiresAt: result.Data.AccessTokenExpiresAt,
+                RefreshToken: result.Data.RefreshToken,
+                RefreshTokenExpiresAt: result.Data.RefreshTokenExpiresAt
+            );
+
+            return Result<TokenPair>.Success(tokens, result.Message).ToActionResult();
 
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout([FromBody] RefreshDTO refreshDTO)
         {
-            string? refreshToken = Request.Cookies["refreshToken"];
-            if (!string.IsNullOrEmpty(refreshToken))
-                await _authService.RevokeRefreshTokenAsync(refreshToken);
+            if (!string.IsNullOrEmpty(refreshDTO.RefreshToken))
+                await _authService.RevokeRefreshTokenAsync(refreshDTO.RefreshToken);
 
-            Response.Cookies.Delete("refreshToken", RefreshCookieOptions());
             return Result.Success("Çıkış Yapıldı").ToActionResult();
 
         }
@@ -128,21 +144,6 @@ namespace SaaS.Controllers
 
             return getMeResult.ToActionResult();
 
-        }
-
-        private static CookieOptions RefreshCookieOptions() => new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = false,                    // FRONTEND HTTPS DEĞİL!
-            SameSite = SameSiteMode.Strict,
-            Path = "/api/auth"
-        };
-
-        private void SetRefreshCookie(string refreshToken, DateTime expiresAt)
-        {
-            var options = RefreshCookieOptions();
-            options.Expires = expiresAt;
-            Response.Cookies.Append("refreshToken", refreshToken, options);
         }
 
         private string? GetIp()

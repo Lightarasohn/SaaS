@@ -22,7 +22,7 @@ namespace SaaS.Services
             _jwt = jwt.Value;
         }
 
-        public string CreateAccessToken(AppUser user)
+        public (string Token, DateTimeOffset ExpiresAt) CreateAccessToken(AppUser user)
         {
             var claims = new List<Claim>
             {
@@ -38,15 +38,17 @@ namespace SaaS.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SigningKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_jwt.AccessTokenMinutes);
+
             var token = new JwtSecurityToken(
                 issuer: _jwt.Issuer,
                 audience: _jwt.Audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
-                expires: DateTime.UtcNow.AddMinutes(_jwt.AccessTokenMinutes),
+                expires: expiresAt.UtcDateTime,
                 signingCredentials: creds);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
         }
 
         public (string RawToken, string TokenHash) CreateRefreshToken()

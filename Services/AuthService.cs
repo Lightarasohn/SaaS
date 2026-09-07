@@ -172,7 +172,7 @@ namespace SaaS.Services
 
                 return Result<string>.Success(rawRecoveryKey, "Kayıt işlemi başarılı ancak doğrulama e-postası gönderilirken bir sorun oluştu. Giriş yapmayı deneyin");
             }
-            
+
             _logger.LogInformation("Kayıt tamamlandı. UserId={UserId}", newUser.Id);
             return Result<string>.Success(rawRecoveryKey, "Başarıyla kayıt olundu. Lütfen giriş yapmadan önce e-postanıza gelen link ile kaydınızı tamamlayınız.");
         }
@@ -256,26 +256,17 @@ namespace SaaS.Services
         public async Task<Result> VerifyAccount(string rawToken)
         {
             _logger.LogDebug("Hesap doğrulama isteği alındı");
-            if (string.IsNullOrWhiteSpace(rawToken))
-                return Result.Fail("Geçersiz aktivasyon linki");
 
-            string hash = SecureTokenService.Hash(rawToken);
-
-            UserToken? token = await _context.UserTokens
-                .Include(ut => ut.User)
-                .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == TOKEN_TYPE_ACTIVATION);
+            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_ACTIVATION);
 
             if (token == null)
-                return Result.NotFound("Aktivasyon linki geçersiz");
-
-            if (token.Used || token.ExpiresAt <= DateTime.UtcNow)
                 return Result.NotFound("Aktivasyon linki geçersiz veya süresi dolmuş");
-                
+
             if (token.User.IsVerified)
             {
                 token.Used = true;
                 await _context.SaveChangesAsync();
-                return Result.Success("Hesap zaten aktifleştirilmiş");
+                return Result.Conflict("Hesap zaten aktifleştirilmiş");
             }
 
             token.User.IsVerified = true;
@@ -283,34 +274,6 @@ namespace SaaS.Services
             await _context.SaveChangesAsync();
             _logger.LogInformation("Hesap aktifleştirildi. UserId={UserId}", token.UserId);
             return Result.Success("Hesap aktifleştirildi");
-        }
-
-        private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime)
-        {
-            await InvalidateActiveTokensAsync(userId, tokenType);
-
-            var (raw, hash) = SecureTokenService.GenerateSecureToken();
-
-            UserToken userToken = new UserToken
-            {
-                UserId = userId,
-                TokenHash = hash,
-                TokenType = tokenType,
-                ExpiresAt = DateTime.UtcNow.Add(lifeTime),
-                Used = false,
-                CreateDate = DateTime.UtcNow
-            };
-
-            await _context.UserTokens.AddAsync(userToken);
-            await _context.SaveChangesAsync();
-            return raw;
-        }
-
-        private async Task InvalidateActiveTokensAsync(int userId, string tokenType)
-        {
-            await _context.UserTokens
-                                .Where(ut => ut.UserId == userId && ut.TokenType == tokenType && !ut.Used)
-                                .ExecuteUpdateAsync(s => s.SetProperty(ut => ut.Used, true));
         }
 
         public async Task<Result> ForgotPassword(ForgotPasswordDTO forgotPasswordDTO)
@@ -391,55 +354,11 @@ namespace SaaS.Services
 
             if (IsInPasswordCooldown(token.User))
                 return Result.Conflict("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
-            
+
             _logger.LogDebug("Parola yenileme doğrulaması başarılı. UserId={UserId}", token.UserId);
             return Result.Success("Parola yenilenebilir");
         }
 
-        private async Task<UserToken?> GetValidTokenAsync(string rawToken, string tokenType)
-        {
-            if (string.IsNullOrWhiteSpace(rawToken))
-                return null;
-
-            string hash = SecureTokenService.Hash(rawToken);
-
-            UserToken? token = await _context.UserTokens
-                .Include(ut => ut.User)
-                .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == tokenType);
-
-            if (token == null || token.Used || token.ExpiresAt <= DateTime.UtcNow)
-                return null;
-
-            return token;
-        }
-
-        private static bool IsInPasswordCooldown(AppUser user)
-        {
-            return user.PasswordChangedAt is DateTime changedAt
-               && changedAt.AddDays(PASSWORD_CHANGE_COOLDOWN_DAYS) > DateTime.UtcNow;
-        }
-
-        private async Task<TokenPair> IssueTokenPairAsync(AppUser user, string? ip, string? userAgent)
-        {
-            string accessToken = _tokenService.CreateAccessToken(user);
-            var (rawRefresh, refreshHash) = _tokenService.CreateRefreshToken();
-
-            var expiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenDays);
-
-            await _context.RefreshTokens.AddAsync(new RefreshToken
-            {
-                UserId = user.Id,
-                TokenHash = refreshHash,
-                ExpiresAt = expiresAt,
-                CreateDate = DateTime.UtcNow,
-                CreatedByIp = ip,
-                UserAgent = userAgent
-            });
-            await _context.SaveChangesAsync();
-
-            return new TokenPair(accessToken, rawRefresh, expiresAt);
-        }
-        
         public async Task<Result<TokenPair>> RefreshAsync(string rawRefreshToken, string? ip, string? userAgent)
         {
             _logger.LogDebug("Oturum yenileme isteği alındı");
@@ -498,13 +417,6 @@ namespace SaaS.Services
             }
         }
 
-        private async Task RevokeAllUserTokensAsync(int userId)
-        {
-            await _context.RefreshTokens
-                .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
-        }
-
         public async Task RevokeRefreshTokenAsync(string rawRefreshToken)
         {
             var hash = SecureTokenService.Hash(rawRefreshToken);
@@ -519,27 +431,124 @@ namespace SaaS.Services
             _logger.LogDebug("Kullanıcı bilgisi isteniyor");
             if (!Guid.TryParse(publicId, out Guid userPublicId))
                 return Result<MeDTO>.Unauthorized("Geçersiz oturum");
-            
+
             var userDto = await _context.AppUsers
                                     .AsNoTracking()
                                     .Select(u => new MeDTO
-                                        {
-                                            PublicId = u.PublicId,
-                                            Name = u.Name,
-                                            Email = u.Email,
-                                            IsVerified = u.IsVerified,
-                                            PasswordChangedAt = u.PasswordChangedAt,
-                                            CreateDate = u.CreateDate,
-                                            CompanyName = u.Company.Name,
-                                            RoleName = u.Role.Name
-                                        })
-                                    .FirstOrDefaultAsync(u =>  u.PublicId == userPublicId);
-            
+                                    {
+                                        PublicId = u.PublicId,
+                                        Name = u.Name,
+                                        Email = u.Email,
+                                        IsVerified = u.IsVerified,
+                                        PasswordChangedAt = u.PasswordChangedAt,
+                                        CreateDate = u.CreateDate,
+                                        CompanyName = u.Company.Name,
+                                        RoleName = u.Role.Name
+                                    })
+                                    .FirstOrDefaultAsync(u => u.PublicId == userPublicId);
+
             if (userDto == null)
                 return Result<MeDTO>.NotFound("Kullanıcı bulunamadı");
             _logger.LogDebug("Kullanıcı bilgisi başarıyla getirildi. PublicId={PublicId}", userDto.PublicId);
             return Result<MeDTO>.Success(userDto);
 
         }
+
+        public async Task<Result> ValidateVerifyAccount(string rawToken)
+        {
+            _logger.LogDebug("Hesap aktifleştirme doğrulaması isteği alındı");
+            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_ACTIVATION);
+
+            if (token == null)
+                return Result.Fail("Hesap aktifleştirme linki geçersiz veya süresi dolmuş");
+
+            if (token.User.IsVerified)
+            {
+                return Result.Conflict("Hesap zaten aktifleştirilmiş");
+            }
+
+            _logger.LogDebug("Hesap aktifleştirme doğrulaması başarılı. UserId={UserId}", token.UserId);
+            return Result.Success("Hesap aktifleştirilebilir");
+        }
+
+        private async Task RevokeAllUserTokensAsync(int userId)
+        {
+            await _context.RefreshTokens
+                .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
+        }
+    
+        private async Task<TokenPair> IssueTokenPairAsync(AppUser user, string? ip, string? userAgent)
+        {
+            var (accessToken, accessTokenExpiresAt) = _tokenService.CreateAccessToken(user);
+            var (rawRefresh, refreshHash) = _tokenService.CreateRefreshToken();
+
+            var refreshTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(_jwt.RefreshTokenDays);
+
+            await _context.RefreshTokens.AddAsync(new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = refreshHash,
+                ExpiresAt = refreshTokenExpiresAt.UtcDateTime,
+                CreateDate = DateTime.UtcNow,
+                CreatedByIp = ip,
+                UserAgent = userAgent
+            });
+            await _context.SaveChangesAsync();
+
+            return new TokenPair(accessToken, accessTokenExpiresAt, rawRefresh, refreshTokenExpiresAt);
+        }
+
+        private static bool IsInPasswordCooldown(AppUser user)
+        {
+            return user.PasswordChangedAt is DateTime changedAt
+               && changedAt.AddDays(PASSWORD_CHANGE_COOLDOWN_DAYS) > DateTime.UtcNow;
+        }
+    
+        private async Task<UserToken?> GetValidTokenAsync(string rawToken, string tokenType)
+        {
+            if (string.IsNullOrWhiteSpace(rawToken))
+                return null;
+
+            string hash = SecureTokenService.Hash(rawToken);
+
+            UserToken? token = await _context.UserTokens
+                .Include(ut => ut.User)
+                .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == tokenType);
+
+            if (token == null || token.Used || token.ExpiresAt <= DateTime.UtcNow)
+                return null;
+
+            return token;
+        }
+    
+        private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime)
+        {
+            await InvalidateActiveTokensAsync(userId, tokenType);
+
+            var (raw, hash) = SecureTokenService.GenerateSecureToken();
+
+            UserToken userToken = new UserToken
+            {
+                UserId = userId,
+                TokenHash = hash,
+                TokenType = tokenType,
+                ExpiresAt = DateTime.UtcNow.Add(lifeTime),
+                Used = false,
+                CreateDate = DateTime.UtcNow
+            };
+
+            await _context.UserTokens.AddAsync(userToken);
+            await _context.SaveChangesAsync();
+            return raw;
+        }
+
+        private async Task InvalidateActiveTokensAsync(int userId, string tokenType)
+        {
+            await _context.UserTokens
+                                .Where(ut => ut.UserId == userId && ut.TokenType == tokenType && !ut.Used)
+                                .ExecuteUpdateAsync(s => s.SetProperty(ut => ut.Used, true));
+        }
     }
+
 }

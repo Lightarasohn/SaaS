@@ -24,6 +24,8 @@ public partial class MasterContext : DbContext
 
     public virtual DbSet<CompanySubscription> CompanySubscriptions { get; set; }
 
+    public virtual DbSet<Module> Modules { get; set; }
+
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
@@ -130,10 +132,17 @@ public partial class MasterContext : DbContext
 
             entity.ToTable("company_subscription");
 
+            entity.HasIndex(e => new { e.CompanyId, e.IsActive }, "ux_companysubscription_activecompany")
+                .IsUnique()
+                .HasFilter("(is_active = true)");
+
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
             entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CreateDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("create_date");
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true)
@@ -149,6 +158,28 @@ public partial class MasterContext : DbContext
                 .HasForeignKey(d => d.PlanId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_plan_to_subscription");
+        });
+
+        modelBuilder.Entity<Module>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("pk_module");
+
+            entity.ToTable("module");
+
+            entity.HasIndex(e => e.ModuleKey, "module_module_key_key").IsUnique();
+
+            entity.Property(e => e.Id)
+                .UseIdentityAlwaysColumn()
+                .HasColumnName("id");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.ModuleKey)
+                .HasMaxLength(50)
+                .HasColumnName("module_key");
+            entity.Property(e => e.Name)
+                .HasMaxLength(255)
+                .HasColumnName("name");
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -203,11 +234,31 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
-            entity.Property(e => e.HasBudgetAccess).HasColumnName("has_budget_access");
-            entity.Property(e => e.HasHrAccess).HasColumnName("has_hr_access");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+
+            entity.HasMany(d => d.Modules).WithMany(p => p.Plans)
+                .UsingEntity<Dictionary<string, object>>(
+                    "PlanModule",
+                    r => r.HasOne<Module>().WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("fk_module_to_plan_module"),
+                    l => l.HasOne<SubscriptionPlan>().WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("fk_plan_to_plan_module"),
+                    j =>
+                    {
+                        j.HasKey("PlanId", "ModuleId").HasName("pk_plan_module");
+                        j.ToTable("plan_module");
+                        j.IndexerProperty<int>("PlanId").HasColumnName("plan_id");
+                        j.IndexerProperty<int>("ModuleId").HasColumnName("module_id");
+                    });
         });
 
         modelBuilder.Entity<UserToken>(entity =>

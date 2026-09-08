@@ -9,9 +9,9 @@ public partial class SubscriptionPlan
 
     public string Name { get; set; } = null!;
 
-    public bool HasBudgetAccess { get; set; }
-
-    public bool HasHrAccess { get; set; }
+    public bool IsActive { get; set; }
 
     public virtual ICollection<CompanySubscription> CompanySubscriptions { get; set; } = new List<CompanySubscription>();
+
+    public virtual ICollection<Module> Modules { get; set; } = new List<Module>();
 }

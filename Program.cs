@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using SaaS.Handlers;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,14 +72,14 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// DI (Repositories)
-
 // DI (Services)
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddHostedService<EmailBackgroundService>();
+builder.Services.AddScoped<IModuleService, ModuleService>();
+builder.Services.AddSingleton<IAuthorizationHandler, ModuleAccessHandler>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings yapılandırması eksik.");
@@ -105,7 +106,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
-builder.Services.AddAuthorization();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("cost-management", policy =>
+        policy.Requirements.Add(new ModuleAccessRequirement("cost-management")));
+
+    options.AddPolicy("hr", policy =>
+        policy.Requirements.Add(new ModuleAccessRequirement("hr")));
+});
 
 // CORS
 builder.Services.AddCors(option =>

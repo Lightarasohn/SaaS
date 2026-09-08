@@ -18,7 +18,7 @@ namespace SaaS.Emails
                 <p>
                  Aşağıdaki link ile hesabınızı aktifleştirin (3 gün geçerlidir):
                 </p>
-                <a href="{baseUrl}/api/auth/verify-account?rawToken={encodedToken}">Hesabı Aktifleştir</a>
+                <a href="{baseUrl}/verify-account?rawToken={encodedToken}">Hesabı Aktifleştir</a>
                 </div>
                 """;
         }

@@ -15,6 +15,8 @@ public partial class CompanySubscription
 
     public bool IsActive { get; set; }
 
+    public DateTime CreateDate { get; set; }
+
     public virtual Company Company { get; set; } = null!;
 
     public virtual SubscriptionPlan Plan { get; set; } = null!;

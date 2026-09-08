@@ -255,24 +255,27 @@ namespace SaaS.Services
 
         public async Task<Result> VerifyAccount(string rawToken)
         {
-            _logger.LogDebug("Hesap doğrulama isteği alındı");
+            if (string.IsNullOrWhiteSpace(rawToken))
+                return Result.NotFound("Aktivasyon linki geçersiz");
 
-            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_ACTIVATION);
+            string hash = SecureTokenService.Hash(rawToken);
+
+            UserToken? token = await _context.UserTokens
+                .Include(ut => ut.User)
+                .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == TOKEN_TYPE_ACTIVATION);
 
             if (token == null)
-                return Result.NotFound("Aktivasyon linki geçersiz veya süresi dolmuş");
+                return Result.NotFound("Aktivasyon linki geçersiz");
 
             if (token.User.IsVerified)
-            {
-                token.Used = true;
-                await _context.SaveChangesAsync();
                 return Result.Conflict("Hesap zaten aktifleştirilmiş");
-            }
+
+            if (token.Used || token.ExpiresAt <= DateTime.UtcNow)
+                return Result.NotFound("Aktivasyon linki geçersiz veya süresi dolmuş");
 
             token.User.IsVerified = true;
             token.Used = true;
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Hesap aktifleştirildi. UserId={UserId}", token.UserId);
             return Result.Success("Hesap aktifleştirildi");
         }
 
@@ -456,18 +459,24 @@ namespace SaaS.Services
 
         public async Task<Result> ValidateVerifyAccount(string rawToken)
         {
-            _logger.LogDebug("Hesap aktifleştirme doğrulaması isteği alındı");
-            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_ACTIVATION);
+            if (string.IsNullOrWhiteSpace(rawToken))
+                return Result.NotFound("Aktivasyon linki geçersiz");
+
+            string hash = SecureTokenService.Hash(rawToken);
+
+            UserToken? token = await _context.UserTokens
+                .Include(ut => ut.User)
+                .FirstOrDefaultAsync(ut => ut.TokenHash == hash && ut.TokenType == TOKEN_TYPE_ACTIVATION);
 
             if (token == null)
-                return Result.Fail("Hesap aktifleştirme linki geçersiz veya süresi dolmuş");
+                return Result.NotFound("Aktivasyon linki geçersiz");
 
             if (token.User.IsVerified)
-            {
                 return Result.Conflict("Hesap zaten aktifleştirilmiş");
-            }
 
-            _logger.LogDebug("Hesap aktifleştirme doğrulaması başarılı. UserId={UserId}", token.UserId);
+            if (token.Used || token.ExpiresAt <= DateTime.UtcNow)
+                return Result.NotFound("Aktivasyon linki geçersiz veya süresi dolmuş");
+
             return Result.Success("Hesap aktifleştirilebilir");
         }
 
@@ -477,7 +486,7 @@ namespace SaaS.Services
                 .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
                 .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
         }
-    
+
         private async Task<TokenPair> IssueTokenPairAsync(AppUser user, string? ip, string? userAgent)
         {
             var (accessToken, accessTokenExpiresAt) = _tokenService.CreateAccessToken(user);
@@ -504,7 +513,7 @@ namespace SaaS.Services
             return user.PasswordChangedAt is DateTime changedAt
                && changedAt.AddDays(PASSWORD_CHANGE_COOLDOWN_DAYS) > DateTime.UtcNow;
         }
-    
+
         private async Task<UserToken?> GetValidTokenAsync(string rawToken, string tokenType)
         {
             if (string.IsNullOrWhiteSpace(rawToken))
@@ -521,7 +530,7 @@ namespace SaaS.Services
 
             return token;
         }
-    
+
         private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime)
         {
             await InvalidateActiveTokensAsync(userId, tokenType);

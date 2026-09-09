@@ -13,7 +13,7 @@ namespace SaaS.Database.Contexts.CMS
         public Guid? CurrentCompanyId { get; set; }
         partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Distributor>()
+            modelBuilder.Entity<OrgUnit>()
             .HasQueryFilter(d => d.CompanyId == CurrentCompanyId);
 
             modelBuilder.Entity<ExpenseCategory>()

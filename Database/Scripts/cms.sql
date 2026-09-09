@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS budget, distributor,
+DROP TABLE IF EXISTS budget, org_unit,
             expense, expense_category,
             expense_status;
 
@@ -18,7 +18,7 @@ CREATE TABLE expense_status (
     CONSTRAINT pk_expense_status PRIMARY KEY (id)
 );
 
--- 2. Şirkete Özel Kategoriler ve Bayiler
+-- 2. Şirkete Özel Kategoriler ve Organizasyon Birimleri
 CREATE TABLE expense_category (
     id INT GENERATED ALWAYS AS IDENTITY,
     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
@@ -28,16 +28,18 @@ CREATE TABLE expense_category (
     CONSTRAINT pk_expense_category PRIMARY KEY (id)
 );
 
-CREATE TABLE distributor (
+-- org_unit: şirketin bölümlendirme birimi — bayi, bölge, departman, ekip.
+-- Kendine referans verir; hiyerarşi materialized path ile tutulur.
+CREATE TABLE org_unit (
     id INT GENERATED ALWAYS AS IDENTITY,
     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     company_id UUID NOT NULL,               -- MANTIKSAL BAĞLANTI: Master DB'deki company.public_id
-    parent_id INT,                          -- NULL ise kök bayi
+    parent_id INT,                          -- NULL ise kök birim
     path VARCHAR(255) NOT NULL DEFAULT '',  -- '/1/4/12/' — kökten kendine id zinciri
-    region VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    CONSTRAINT pk_distributor PRIMARY KEY (id),
-    CONSTRAINT fk_parent_to_distributor FOREIGN KEY (parent_id) REFERENCES distributor(id)
+    CONSTRAINT pk_org_unit PRIMARY KEY (id),
+    CONSTRAINT fk_parent_to_org_unit FOREIGN KEY (parent_id) REFERENCES org_unit(id)
 );
 
 -- 3. Bütçe ve Masraf (Kalp Tablolar)
@@ -45,7 +47,7 @@ CREATE TABLE budget (
     id INT GENERATED ALWAYS AS IDENTITY,
     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     company_id UUID NOT NULL,               -- tenant filtresi için denormalize
-    distributor_id INT NOT NULL,
+    org_unit_id INT NOT NULL,
     month INT NOT NULL,
     year INT NOT NULL,
     total_amount NUMERIC(18,2) NOT NULL,
@@ -58,7 +60,7 @@ CREATE TABLE budget (
     delete_user UUID,
     delete_date TIMESTAMPTZ,
     CONSTRAINT pk_budget PRIMARY KEY (id),
-    CONSTRAINT fk_distributor_to_budget FOREIGN KEY (distributor_id) REFERENCES distributor(id),
+    CONSTRAINT fk_org_unit_to_budget FOREIGN KEY (org_unit_id) REFERENCES org_unit(id),
     CONSTRAINT ck_budget_month CHECK (month BETWEEN 1 AND 12)
 );
 
@@ -92,25 +94,25 @@ CREATE TABLE expense (
 
 -- Tenant filtresi her sorguda çalışıyor
 CREATE INDEX IX_ExpenseCategory_CompanyId ON expense_category(company_id);
-CREATE INDEX IX_Distributor_CompanyId ON distributor(company_id);
+CREATE INDEX IX_OrgUnit_CompanyId ON org_unit(company_id);
 CREATE INDEX IX_Budget_CompanyId ON budget(company_id);
 CREATE INDEX IX_Expense_CompanyId ON expense(company_id);
 
--- Bayi hiyerarşisi
-CREATE INDEX IX_Distributor_ParentId ON distributor(parent_id);
+-- Organizasyon hiyerarşisi
+CREATE INDEX IX_OrgUnit_ParentId ON org_unit(parent_id);
 -- varchar_pattern_ops: LIKE 'önek%' sorgularının endeksi kullanabilmesi için
-CREATE INDEX IX_Distributor_Path ON distributor(path varchar_pattern_ops);
+CREATE INDEX IX_OrgUnit_Path ON org_unit(path varchar_pattern_ops);
 
 -- Sık kullanılan filtreler
-CREATE INDEX IX_Budget_DistributorId ON budget(distributor_id);
+CREATE INDEX IX_Budget_OrgUnitId ON budget(org_unit_id);
 CREATE INDEX IX_Expense_BudgetId ON expense(budget_id);
 CREATE INDEX IX_Expense_UserId ON expense(user_id);
 -- Onay bekleyen masraf listesi
 CREATE INDEX IX_Expense_CompanyId_StatusId ON expense(company_id, status_id) WHERE is_deleted = FALSE;
 
--- Bir bayinin aynı ay/yıl için tek bütçesi olabilir
-CREATE UNIQUE INDEX UX_Budget_Distributor_Period
-    ON budget(distributor_id, year, month) WHERE is_deleted = FALSE;
+-- Bir birimin aynı ay/yıl için tek bütçesi olabilir
+CREATE UNIQUE INDEX UX_Budget_OrgUnit_Period
+    ON budget(org_unit_id, year, month) WHERE is_deleted = FALSE;
 
 -- ============================================================
 -- BAŞLANGIÇ VERİSİ
@@ -119,3 +121,5 @@ CREATE UNIQUE INDEX UX_Budget_Distributor_Period
 -- ExpenseStatusTypes enum'u ile eşleşmeli: Pending=1, Approved=2, Rejected=3
 INSERT INTO expense_status (name) VALUES
     ('Beklemede'), ('Onaylandı'), ('Reddedildi');
+
+ALTER TABLE expense ADD COLUMN reject_reason VARCHAR(512);

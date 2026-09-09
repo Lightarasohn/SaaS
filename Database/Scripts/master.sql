@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS company, module, 
+    subscription_plan, plan_module, company_subscription,
+    app_role, app_user, user_token, refresh_token;
+
 -- ============================================================
 -- MASTER DB (Merkezi Veri Tabanı)
 -- ============================================================
@@ -61,7 +65,7 @@ CREATE TABLE app_user (
     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     company_id INT NOT NULL,
     role_id INT NOT NULL,
-    distributor_id INT, -- MANTIKSAL BAĞLANTI: FK yok, CMS DB'deki distributor.id
+    org_unit_id UUID,   -- MANTIKSAL BAĞLANTI: FK yok, CMS DB'deki org_unit.public_id
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
@@ -132,6 +136,9 @@ CREATE UNIQUE INDEX UX_RefreshToken_TokenHash ON refresh_token(token_hash);
 CREATE INDEX IX_RefreshToken_UserId_Active ON refresh_token(user_id) WHERE revoked_at IS NULL;
 -- Temizlik servisi için
 CREATE INDEX IX_RefreshToken_ExpiresAt ON refresh_token(expires_at);
+
+-- Kullanıcıyı organizasyon birimine göre listeleme
+CREATE INDEX IX_AppUser_OrgUnitId ON app_user(org_unit_id) WHERE org_unit_id IS NOT NULL;
 
 -- ============================================================
 -- BAŞLANGIÇ VERİSİ

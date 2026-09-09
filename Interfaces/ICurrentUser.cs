@@ -10,5 +10,6 @@ namespace SaaS.Interfaces
         Guid? CompanyId { get; }
         Guid? UserId { get; }
         string? Role { get; }
+        string? Name { get; }
     }
 }

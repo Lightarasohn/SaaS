@@ -23,5 +23,7 @@ namespace SaaS.DTOs.AuthDTOs
         public string CompanyName { get; set; } = null!;
 
         public string RoleName { get; set; } = null!;
+
+        public int OrgUnitId { get; set; }
     }
 }

@@ -13,7 +13,7 @@ public partial class AppUser
 
     public int RoleId { get; set; }
 
-    public int? DistributorId { get; set; }
+    public Guid? OrgUnitId { get; set; }
 
     public string Name { get; set; } = null!;
 

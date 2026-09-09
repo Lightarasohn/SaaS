@@ -131,7 +131,7 @@ namespace SaaS.Services
                 {
                     CompanyId = newCompany.Id,
                     RoleId = (int)RoleTypes.SuperAdmin,
-                    DistributorId = null,
+                    OrgUnitId = null,
                     Email = registerDTO.Email,
                     Name = registerDTO.Name,
                     PasswordHash = hashedPassword,
@@ -207,7 +207,7 @@ namespace SaaS.Services
             {
                 CompanyId = targetCompany.Id,
                 RoleId = (int)RoleTypes.User,
-                DistributorId = null,
+                OrgUnitId = null,
                 Email = registerDTO.Email,
                 Name = registerDTO.Name,
                 PasswordHash = hashedPassword,

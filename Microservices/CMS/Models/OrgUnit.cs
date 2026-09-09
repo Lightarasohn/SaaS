@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SaaS.Microservices.CMS.Models;
 
-public partial class Distributor
+public partial class OrgUnit
 {
     public int Id { get; set; }
 
@@ -15,13 +15,13 @@ public partial class Distributor
 
     public string Path { get; set; } = null!;
 
-    public string Region { get; set; } = null!;
+    public string Name { get; set; } = null!;
 
     public bool IsActive { get; set; }
 
     public virtual ICollection<Budget> Budgets { get; set; } = new List<Budget>();
 
-    public virtual ICollection<Distributor> InverseParent { get; set; } = new List<Distributor>();
+    public virtual ICollection<OrgUnit> InverseParent { get; set; } = new List<OrgUnit>();
 
-    public virtual Distributor? Parent { get; set; }
+    public virtual OrgUnit? Parent { get; set; }
 }

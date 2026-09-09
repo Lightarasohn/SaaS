@@ -34,6 +34,8 @@ namespace SaaS.Extensions
                     return StatusCodes.Status409Conflict;
                 case ResultStatus.Error:
                     return StatusCodes.Status500InternalServerError;
+                case ResultStatus.NotModified:
+                    return StatusCodes.Status304NotModified;
                 default:
                     return StatusCodes.Status500InternalServerError;
             }

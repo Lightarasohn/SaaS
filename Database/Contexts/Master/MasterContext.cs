@@ -61,6 +61,8 @@ public partial class MasterContext : DbContext
 
             entity.HasIndex(e => e.PublicId, "app_user_public_id_key").IsUnique();
 
+            entity.HasIndex(e => e.OrgUnitId, "ix_appuser_orgunitid").HasFilter("(org_unit_id IS NOT NULL)");
+
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
@@ -71,7 +73,6 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.CreateUser).HasColumnName("create_user");
             entity.Property(e => e.DeleteDate).HasColumnName("delete_date");
             entity.Property(e => e.DeleteUser).HasColumnName("delete_user");
-            entity.Property(e => e.DistributorId).HasColumnName("distributor_id");
             entity.Property(e => e.Email)
                 .HasMaxLength(255)
                 .HasColumnName("email");
@@ -80,6 +81,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+            entity.Property(e => e.OrgUnitId).HasColumnName("org_unit_id");
             entity.Property(e => e.PasswordChangedAt).HasColumnName("password_changed_at");
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash");
             entity.Property(e => e.PublicId)

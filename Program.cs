@@ -1,13 +1,11 @@
 using SaaS.Interfaces;
 using SaaS.Services;
-using SaaS.Validations;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SaaS.Database.Contexts.Master;
 using static SaaS.Validations.AuthValidator;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc;
 using SaaS.DTOs;
 using SaaS.Emails;
@@ -15,12 +13,12 @@ using SaaS.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.AspNetCore.Cors.Infrastructure;
-using System.IdentityModel.Tokens.Jwt;
 using SaaS.Handlers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using SaaS.Database.Contexts.CMS;
+using SaaS.Microservices.CMS.Interfaces;
+using SaaS.Microservices.CMS.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,6 +86,8 @@ builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddHostedService<EmailBackgroundService>();
 builder.Services.AddScoped<IModuleService, ModuleService>();
 builder.Services.AddSingleton<IAuthorizationHandler, ModuleAccessHandler>();
+
+// DI (Microservices)
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CMSContext>(sp =>
 {
@@ -98,6 +98,8 @@ builder.Services.AddScoped<CMSContext>(sp =>
     context.CurrentCompanyId = currentUser.CompanyId;
     return context;
 });
+builder.Services.AddScoped<IOrgUnitService, OrgUnitService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings yapılandırması eksik.");

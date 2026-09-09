@@ -11,7 +11,8 @@ namespace SaaS.DTOs
         Forbidden,        // 403 - yetki yok
         NotFound,         // 404
         Conflict,         // 409 - çakışma (e-posta kayıtlı, cooldown vb.)
-        Error             // 500 - beklenmeyen
+        Error,            // 500 - beklenmeyen
+        NotModified,      // 304 - Güncellenmedi
     }
 
     public interface IResult
@@ -40,6 +41,11 @@ namespace SaaS.DTOs
         public static Result Success(string message = "İşlem başarılı")
         {
             return new Result(true, ResultStatus.Ok, message);
+        }
+
+        public static Result NotModified(string message = "İşlem başarılı")
+        {
+            return new Result(true, ResultStatus.NotModified, message);
         }
 
         public static Result Fail(string message, ResultStatus status = ResultStatus.Invalid)
@@ -90,6 +96,11 @@ namespace SaaS.DTOs
         public static Result<T> Success(T data, string message = "İşlem başarılı")
         {
             return new Result<T>(true, ResultStatus.Ok, message, data);
+        }
+
+        public static Result<T> NotModified(T data, string message = "İşlem başarılı")
+        {
+            return new Result<T>(true, ResultStatus.NotModified, message, data);
         }
 
         public static Result<T> Fail(string message, ResultStatus status = ResultStatus.Invalid)

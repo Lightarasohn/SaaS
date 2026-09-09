@@ -19,4 +19,6 @@ public class CurrentUser : ICurrentUser
         Guid.TryParse(User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out Guid id) ? id : null;
 
     public string? Role => User?.FindFirst(ClaimTypes.Role)?.Value;
+
+    public string? Name => User?.FindFirst(ClaimTypes.GivenName)?.Value;
 }

@@ -37,6 +37,8 @@ public partial class Expense
 
     public DateTime? DeleteDate { get; set; }
 
+    public string? RejectReason { get; set; }
+
     public virtual Budget Budget { get; set; } = null!;
 
     public virtual ExpenseCategory ExpenseCategory { get; set; } = null!;

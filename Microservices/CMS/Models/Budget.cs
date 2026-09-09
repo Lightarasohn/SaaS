@@ -11,7 +11,7 @@ public partial class Budget
 
     public Guid CompanyId { get; set; }
 
-    public int DistributorId { get; set; }
+    public int OrgUnitId { get; set; }
 
     public int Month { get; set; }
 
@@ -35,7 +35,7 @@ public partial class Budget
 
     public DateTime? DeleteDate { get; set; }
 
-    public virtual Distributor Distributor { get; set; } = null!;
-
     public virtual ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+
+    public virtual OrgUnit OrgUnit { get; set; } = null!;
 }

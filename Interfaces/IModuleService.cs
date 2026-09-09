@@ -9,7 +9,7 @@ namespace SaaS.Interfaces
 {
     public interface IModuleService
     {
-        Task<Result<List<ModuleAccessDTO>>> GetModulesAsync(int companyId);
-        Task<bool> HasAccessAsync(int companyId, string moduleKey);
+        Task<Result<List<ModuleAccessDTO>>> GetModulesAsync(Guid companyId);
+        Task<bool> HasAccessAsync(Guid companyId, string moduleKey);
     }
 }

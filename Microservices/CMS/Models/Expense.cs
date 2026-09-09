@@ -9,7 +9,9 @@ public partial class Expense
 
     public Guid PublicId { get; set; }
 
-    public int UserId { get; set; }
+    public Guid CompanyId { get; set; }
+
+    public Guid UserId { get; set; }
 
     public int BudgetId { get; set; }
 
@@ -23,15 +25,15 @@ public partial class Expense
 
     public bool IsDeleted { get; set; }
 
-    public int? CreateUser { get; set; }
+    public Guid? CreateUser { get; set; }
 
     public DateTime CreateDate { get; set; }
 
-    public int? UpdateUser { get; set; }
+    public Guid? UpdateUser { get; set; }
 
     public DateTime? UpdateDate { get; set; }
 
-    public int? DeleteUser { get; set; }
+    public Guid? DeleteUser { get; set; }
 
     public DateTime? DeleteDate { get; set; }
 

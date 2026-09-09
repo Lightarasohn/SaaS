@@ -41,7 +41,7 @@ namespace SaaS.Services
 
         public async Task<Result<TokenPair>> Login(LoginDTO loginDto, string? ip, string? userAgent)
         {
-            AppUser? user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+            AppUser? user = await _context.AppUsers.AsNoTracking().Include(u => u.Company).FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             {
@@ -372,6 +372,7 @@ namespace SaaS.Services
 
             RefreshToken? stored = await _context.RefreshTokens
                 .Include(rt => rt.User)
+                .ThenInclude(u => u.Company)
                 .FirstOrDefaultAsync(rt => rt.TokenHash == hash);
 
             if (stored == null)

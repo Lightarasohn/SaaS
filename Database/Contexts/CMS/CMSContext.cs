@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using SaaS.Microservices.CMS.Models;
 using Microsoft.EntityFrameworkCore;
+using SaaS.Microservices.CMS.Models;
 
 namespace SaaS.Database.Contexts.CMS;
 
@@ -39,9 +39,18 @@ public partial class CMSContext : DbContext
 
             entity.HasIndex(e => e.PublicId, "budget_public_id_key").IsUnique();
 
+            entity.HasIndex(e => e.CompanyId, "ix_budget_companyid");
+
+            entity.HasIndex(e => e.DistributorId, "ix_budget_distributorid");
+
+            entity.HasIndex(e => new { e.DistributorId, e.Year, e.Month }, "ux_budget_distributor_period")
+                .IsUnique()
+                .HasFilter("(is_deleted = false)");
+
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.CreateDate)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("create_date");
@@ -80,6 +89,10 @@ public partial class CMSContext : DbContext
 
             entity.HasIndex(e => e.CompanyId, "ix_distributor_companyid");
 
+            entity.HasIndex(e => e.ParentId, "ix_distributor_parentid");
+
+            entity.HasIndex(e => e.Path, "ix_distributor_path").HasOperators(new[] { "varchar_pattern_ops" });
+
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
@@ -87,12 +100,21 @@ public partial class CMSContext : DbContext
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true)
                 .HasColumnName("is_active");
+            entity.Property(e => e.ParentId).HasColumnName("parent_id");
+            entity.Property(e => e.Path)
+                .HasMaxLength(255)
+                .HasDefaultValueSql("''::character varying")
+                .HasColumnName("path");
             entity.Property(e => e.PublicId)
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("public_id");
             entity.Property(e => e.Region)
                 .HasMaxLength(255)
                 .HasColumnName("region");
+
+            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
+                .HasForeignKey(d => d.ParentId)
+                .HasConstraintName("fk_parent_to_distributor");
         });
 
         modelBuilder.Entity<Expense>(entity =>
@@ -103,6 +125,12 @@ public partial class CMSContext : DbContext
 
             entity.HasIndex(e => e.PublicId, "expense_public_id_key").IsUnique();
 
+            entity.HasIndex(e => e.BudgetId, "ix_expense_budgetid");
+
+            entity.HasIndex(e => e.CompanyId, "ix_expense_companyid");
+
+            entity.HasIndex(e => new { e.CompanyId, e.StatusId }, "ix_expense_companyid_statusid").HasFilter("(is_deleted = false)");
+
             entity.HasIndex(e => e.UserId, "ix_expense_userid");
 
             entity.Property(e => e.Id)
@@ -112,6 +140,7 @@ public partial class CMSContext : DbContext
                 .HasPrecision(18, 2)
                 .HasColumnName("amount");
             entity.Property(e => e.BudgetId).HasColumnName("budget_id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.CreateDate)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("create_date");
@@ -153,6 +182,8 @@ public partial class CMSContext : DbContext
 
             entity.ToTable("expense_category");
 
+            entity.HasIndex(e => e.PublicId, "expense_category_public_id_key").IsUnique();
+
             entity.HasIndex(e => e.CompanyId, "ix_expensecategory_companyid");
 
             entity.Property(e => e.Id)
@@ -165,6 +196,9 @@ public partial class CMSContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+            entity.Property(e => e.PublicId)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("public_id");
         });
 
         modelBuilder.Entity<ExpenseStatus>(entity =>

@@ -10,10 +10,20 @@ namespace SaaS.Database.Contexts.CMS
 {
     public partial class CMSContext : DbContext
     {
+        public Guid? CurrentCompanyId { get; set; }
         partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Expense>().HasQueryFilter(e => e.IsDeleted == false);
-            modelBuilder.Entity<Budget>().HasQueryFilter(b => b.IsDeleted == false);
+            modelBuilder.Entity<Distributor>()
+            .HasQueryFilter(d => d.CompanyId == CurrentCompanyId);
+
+            modelBuilder.Entity<ExpenseCategory>()
+                .HasQueryFilter(ec => ec.CompanyId == CurrentCompanyId);
+
+            modelBuilder.Entity<Budget>()
+                .HasQueryFilter(b => b.CompanyId == CurrentCompanyId && b.IsDeleted == false);
+
+            modelBuilder.Entity<Expense>()
+                .HasQueryFilter(e => e.CompanyId == CurrentCompanyId && e.IsDeleted == false);
         }
     }
 }

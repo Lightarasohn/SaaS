@@ -23,7 +23,7 @@ public class ModulesController : ControllerBase
     public async Task<IActionResult> GetModules()
     {
         var claim = User.FindFirst("company_id")?.Value;
-        if (!int.TryParse(claim, out int companyId))
+        if (!Guid.TryParse(claim, out Guid companyId))
             return Result<List<ModuleAccessDTO>>.Unauthorized("Geçersiz oturum").ToActionResult();
 
         var result = await _moduleService.GetModulesAsync(companyId);

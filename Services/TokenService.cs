@@ -32,7 +32,7 @@ namespace SaaS.Services
                 new(JwtRegisteredClaimNames.GivenName, user.Name),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new(ClaimTypes.Role, ((RoleTypes)user.RoleId).ToString()),
-                new("company_id", user.CompanyId.ToString())
+                new("company_id", user.Company.PublicId.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SigningKey));

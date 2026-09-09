@@ -17,7 +17,7 @@ public class ModuleService : IModuleService
         _logger = logger;
     }
 
-    public async Task<Result<List<ModuleAccessDTO>>> GetModulesAsync(int companyId)
+    public async Task<Result<List<ModuleAccessDTO>>> GetModulesAsync(Guid companyId)
     {
         var allowedIds = await GetAllowedModuleIdsAsync(companyId);
 
@@ -36,22 +36,23 @@ public class ModuleService : IModuleService
         return Result<List<ModuleAccessDTO>>.Success(modules);
     }
 
-    public async Task<bool> HasAccessAsync(int companyId, string moduleKey)
+    public async Task<bool> HasAccessAsync(Guid companyId, string moduleKey)
     {
         return await _context.CompanySubscriptions
             .AsNoTracking()
-            .Where(cs => cs.CompanyId == companyId
+            .Include(cs => cs.Company)
+            .Where(cs => cs.Company.PublicId == companyId
                       && cs.IsActive
                       && cs.ExpiresAt > DateTime.UtcNow)
             .SelectMany(cs => cs.Plan.Modules)
             .AnyAsync(m => m.ModuleKey == moduleKey && m.IsActive);
     }
 
-    private async Task<List<int>> GetAllowedModuleIdsAsync(int companyId)
+    private async Task<List<int>> GetAllowedModuleIdsAsync(Guid companyId)
     {
         return await _context.CompanySubscriptions
             .AsNoTracking()
-            .Where(cs => cs.CompanyId == companyId
+            .Where(cs => cs.Company.PublicId == companyId
                       && cs.IsActive
                       && cs.ExpiresAt > DateTime.UtcNow)
             .SelectMany(cs => cs.Plan.Modules)

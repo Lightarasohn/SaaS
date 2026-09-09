@@ -15,7 +15,7 @@ public class ModuleAccessHandler : AuthorizationHandler<ModuleAccessRequirement>
         ModuleAccessRequirement requirement)
     {
         var claim = context.User.FindFirst("company_id")?.Value;
-        if (!int.TryParse(claim, out int companyId)) return;
+        if (!Guid.TryParse(claim, out Guid companyId)) return;
 
         using var scope = _scopeFactory.CreateScope();
         var moduleService = scope.ServiceProvider.GetRequiredService<IModuleService>();

@@ -20,6 +20,7 @@ using System.IdentityModel.Tokens.Jwt;
 using SaaS.Handlers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using SaaS.Database.Contexts.CMS;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +62,12 @@ builder.Services.AddDbContext<MasterContext>(option =>
                      ?? throw new NpgsqlException("No connection string found in project!")
     )
 );
+builder.Services.AddDbContext<CMSContext>(option =>
+    option.UseNpgsql(builder.Configuration.GetConnectionString("CMSConnection")
+                     ?? throw new NpgsqlException("No connection string found in project!")
+    )
+);
+
 // VALIDATORS
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
@@ -71,6 +78,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithCompanyValidato
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddHttpContextAccessor();
 
 // DI (Services)
 builder.Services.AddScoped<ITokenService, TokenService>();
@@ -80,6 +88,16 @@ builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddHostedService<EmailBackgroundService>();
 builder.Services.AddScoped<IModuleService, ModuleService>();
 builder.Services.AddSingleton<IAuthorizationHandler, ModuleAccessHandler>();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<CMSContext>(sp =>
+{
+    var options = sp.GetRequiredService<DbContextOptions<CMSContext>>();
+    var currentUser = sp.GetRequiredService<ICurrentUser>();
+
+    var context = new CMSContext(options);
+    context.CurrentCompanyId = currentUser.CompanyId;
+    return context;
+});
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings yapılandırması eksik.");
@@ -141,6 +159,8 @@ app.UseHttpsRedirection();
 
 
 app.UseCors("Frontend");
+
+app.UseForwardedHeaders();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using FluentValidation;
 using SaaS.Microservices.CMS.DTOs.BudgetDTOs;
 
-namespace SaaS.Microservices.Validations
+namespace SaaS.Microservices.CMS.Validations
 {
     public static class BudgetValidations
     {

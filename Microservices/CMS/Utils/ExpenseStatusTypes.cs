@@ -1,4 +1,4 @@
-namespace SaaS.Utils
+namespace SaaS.Microservices.CMS.Utils
 {
     /// <summary>
     /// CMS DB'deki expense_status tablosuyla eşleşir.
@@ -8,6 +8,7 @@ namespace SaaS.Utils
     {
         Pending = 1,
         Approved = 2,
-        Rejected = 3
+        Rejected = 3,
+        Revision = 4
     }
 }

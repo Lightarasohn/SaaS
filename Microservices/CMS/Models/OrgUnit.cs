@@ -23,5 +23,7 @@ public partial class OrgUnit
 
     public virtual ICollection<OrgUnit> InverseParent { get; set; } = new List<OrgUnit>();
 
+    public virtual ICollection<OrgUnitUserRole> OrgUnitUserRoles { get; set; } = new List<OrgUnitUserRole>();
+
     public virtual OrgUnit? Parent { get; set; }
 }

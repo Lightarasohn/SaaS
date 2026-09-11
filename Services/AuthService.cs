@@ -140,7 +140,7 @@ namespace SaaS.Services
 
                 await _context.AppUsers.AddAsync(newUser);
                 await _context.SaveChangesAsync();
-                newUser.CreateUser = newUser.Id;
+                newUser.CreateUser = newUser.PublicId;
                 await _context.SaveChangesAsync();
 
                 activationToken = await CreateUserTokenAsync(newUser.Id, TOKEN_TYPE_ACTIVATION, TimeSpan.FromDays(3));
@@ -219,7 +219,7 @@ namespace SaaS.Services
             {
                 await _context.AppUsers.AddAsync(newUser);
                 await _context.SaveChangesAsync();
-                newUser.CreateUser = newUser.Id;
+                newUser.CreateUser = newUser.PublicId;
                 await _context.SaveChangesAsync();
                 activationToken = await CreateUserTokenAsync(newUser.Id, TOKEN_TYPE_ACTIVATION, TimeSpan.FromDays(3));
 

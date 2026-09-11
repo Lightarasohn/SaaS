@@ -5,5 +5,5 @@ using System.Threading.Tasks;
 
 namespace SaaS.Microservices.CMS.DTOs.ExpenseDTOs
 {
-    public record RejectExpenseDTO(Guid ExpensePublicId, string? RejectReason);
+    public record UpdateExpenseDTO(Guid ExpensePublicId, Guid ExpenseCategoryPublicId, decimal Amount, string? Description);
 }

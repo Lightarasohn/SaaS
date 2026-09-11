@@ -15,7 +15,7 @@ CREATE TABLE company (
     create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_company PRIMARY KEY (id)
 );
-
+ 
 -- 2. Modüller (uygulama katmanındaki "Service" ile karışmaması için "module")
 CREATE TABLE module (
     id INT GENERATED ALWAYS AS IDENTITY,
@@ -73,11 +73,11 @@ CREATE TABLE app_user (
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     password_changed_at TIMESTAMPTZ,
-    create_user INT,
+    create_user UUID,
     create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_user INT,
+    update_user UUID,
     update_date TIMESTAMPTZ,
-    delete_user INT,
+    delete_user UUID,
     delete_date TIMESTAMPTZ,
     CONSTRAINT pk_app_user PRIMARY KEY (id),
     CONSTRAINT fk_company_to_app_user FOREIGN KEY (company_id) REFERENCES company(id),

@@ -100,6 +100,9 @@ builder.Services.AddScoped<CMSContext>(sp =>
 });
 builder.Services.AddScoped<IOrgUnitService, OrgUnitService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
+builder.Services.AddScoped<IOrgUnitAuthorizationService, OrgUnitAuthorizationService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings yapılandırması eksik.");

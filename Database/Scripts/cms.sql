@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS budget, org_unit,
+DROP TABLE IF EXISTS budget, org_unit, org_unit_role, org_unit_user_role,
             expense, expense_category,
             expense_status;
 
@@ -40,6 +40,25 @@ CREATE TABLE org_unit (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT pk_org_unit PRIMARY KEY (id),
     CONSTRAINT fk_parent_to_org_unit FOREIGN KEY (parent_id) REFERENCES org_unit(id)
+);
+
+CREATE TABLE org_unit_role(
+    id INT GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(50) NOT NULL,
+    CONSTRAINT pk_org_unit_role PRIMARY KEY (id)
+);
+
+CREATE TABLE org_unit_user_role (
+    id INT GENERATED ALWAYS AS IDENTITY,
+    company_id UUID NOT NULL,
+    org_unit_id INT NOT NULL,
+    user_id UUID NOT NULL,          -- MANTIKSAL BAĞLANTI: Master DB app_user.public_id
+    role_id int NOT NULL,      -- 'Manager', 'Approver'
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_org_unit_user_role PRIMARY KEY (id),
+    CONSTRAINT fk_org_unit_to_org_unit_user_role FOREIGN KEY (org_unit_id) REFERENCES org_unit(id),
+    CONSTRAINT fk_org_unit_role_to_org_unit_user_role FOREIGN KEY (role_id) REFERENCES org_unit_role(id)
 );
 
 -- 3. Bütçe ve Masraf (Kalp Tablolar)
@@ -113,6 +132,9 @@ CREATE INDEX IX_Expense_CompanyId_StatusId ON expense(company_id, status_id) WHE
 -- Bir birimin aynı ay/yıl için tek bütçesi olabilir
 CREATE UNIQUE INDEX UX_Budget_OrgUnit_Period
     ON budget(org_unit_id, year, month) WHERE is_deleted = FALSE;
+    
+CREATE UNIQUE INDEX UX_OrgUnitUserRole_Unit_User_Role ON org_unit_user_role(org_unit_id, user_id, role_id) WHERE is_active;
+CREATE INDEX IX_OrgUnitUserRole_UserId ON org_unit_user_role(user_id) WHERE is_active;
 
 -- ============================================================
 -- BAŞLANGIÇ VERİSİ

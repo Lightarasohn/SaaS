@@ -10,10 +10,23 @@ namespace SaaS.Microservices.CMS.Interfaces
 {
     public interface IExpenseService
     {
+        // [Endpoint] [✔]
         Task<Result<List<ExpenseDTO>>> GetAllAsync(Guid? budgetPublicId, int? statusId, bool onlyMine);
+        // [Endpoint] [✔]
         Task<Result<ExpenseDTO>> CreateAsync(CreateExpenseDTO dto);
-        Task<Result> ApproveAsync(Guid expensePublicId);
+        // [Endpoint] [✔]
+        Task<Result<List<ExpenseDTO>>> CreateRangeAsync(CreateRangeExpenseDTO dto);
+        // [Endpoint] [✔]
+        Task<Result> ApproveAsync(ApproveExpenseDTO expensePublicId);
+        // [Endpoint] [✔]
+        Task<Result<List<Guid>>> ApproveRangeAsync(ApproveRangeExpenseDTO dto);
+        // [Endpoint] [✔]
         Task<Result> CanApproveAsync(Guid expensePublicId);
-        Task<Result> RejectAsync(Guid expensePublicId, RejectExpenseDTO dTO);
+        // [Endpoint] [✔]
+        Task<Result<List<Guid>>> CanApproveRangeAsync(CanApproveRangeExpenseDTO dto);
+        // [Endpoint] [✔]
+        Task<Result> RejectAsync(RejectExpenseDTO dto);
+        // [Endpoint] [✔]
+        Task<Result<ExpenseDTO>> UpdateExpenseAsync(UpdateExpenseDTO dto);
     }
 }

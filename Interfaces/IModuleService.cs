@@ -9,6 +9,7 @@ namespace SaaS.Interfaces
 {
     public interface IModuleService
     {
+        // [Endpoint] [✔]
         Task<Result<List<ModuleAccessDTO>>> GetModulesAsync(Guid companyId);
         Task<bool> HasAccessAsync(Guid companyId, string moduleKey);
     }

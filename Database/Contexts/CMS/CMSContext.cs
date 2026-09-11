@@ -26,6 +26,10 @@ public partial class CMSContext : DbContext
 
     public virtual DbSet<OrgUnit> OrgUnits { get; set; }
 
+    public virtual DbSet<OrgUnitRole> OrgUnitRoles { get; set; }
+
+    public virtual DbSet<OrgUnitUserRole> OrgUnitUserRoles { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseNpgsql("Name=CMSConnection");
 
@@ -219,6 +223,57 @@ public partial class CMSContext : DbContext
             entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
                 .HasForeignKey(d => d.ParentId)
                 .HasConstraintName("fk_parent_to_org_unit");
+        });
+
+        modelBuilder.Entity<OrgUnitRole>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("pk_org_unit_role");
+
+            entity.ToTable("org_unit_role");
+
+            entity.Property(e => e.Id)
+                .UseIdentityAlwaysColumn()
+                .HasColumnName("id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(50)
+                .HasColumnName("name");
+        });
+
+        modelBuilder.Entity<OrgUnitUserRole>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("pk_org_unit_user_role");
+
+            entity.ToTable("org_unit_user_role");
+
+            entity.HasIndex(e => e.UserId, "ix_orgunituserrole_userid").HasFilter("is_active");
+
+            entity.HasIndex(e => new { e.OrgUnitId, e.UserId, e.RoleId }, "ux_orgunituserrole_unit_user_role")
+                .IsUnique()
+                .HasFilter("is_active");
+
+            entity.Property(e => e.Id)
+                .UseIdentityAlwaysColumn()
+                .HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CreateDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("create_date");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.OrgUnitId).HasColumnName("org_unit_id");
+            entity.Property(e => e.RoleId).HasColumnName("role_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.HasOne(d => d.OrgUnit).WithMany(p => p.OrgUnitUserRoles)
+                .HasForeignKey(d => d.OrgUnitId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_org_unit_to_org_unit_user_role");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.OrgUnitUserRoles)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_org_unit_role_to_org_unit_user_role");
         });
 
         OnModelCreatingPartial(modelBuilder);

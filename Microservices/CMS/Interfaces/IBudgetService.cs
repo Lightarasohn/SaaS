@@ -9,7 +9,13 @@ namespace SaaS.Microservices.CMS.Interfaces
 {
     public interface IBudgetService
     {
+        // [Endpoint] [✔]
         Task<Result<List<BudgetDTO>>> GetAllAsync(int? year, int? month, Guid? orgUnitPublicId);
+        // [Endpoint] [✔]
         Task<Result<BudgetDTO>> CreateAsync(CreateBudgetDTO dto);
+        // [Endpoint] [✔]
+        Task<Result<BudgetDTO>> UpdateBudgetAsync(UpdateBudgetDTO dto);
+        // [Endpoint] [✔]
+        Task<Result> CanUpdateBudgetAsync(CanUpdateBudgetDTO dto);
     }
 }

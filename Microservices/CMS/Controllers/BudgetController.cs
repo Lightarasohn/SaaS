@@ -35,5 +35,20 @@ namespace SaaS.Microservices.CMS.Controllers
             var createdResult = await _budgetService.CreateAsync(createBudgetDTO);
             return createdResult.ToActionResult();
         }
+
+        [HttpPut]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> Update([FromBody] UpdateBudgetDTO dto)
+        {
+            var updatedResult = await _budgetService.UpdateBudgetAsync(dto);
+            return updatedResult.ToActionResult();
+        }
+
+        [HttpPost("can-update")]
+        public async Task<IActionResult> CanUpdate([FromBody] CanUpdateBudgetDTO dto)
+        {
+            var canUpdatedResult = await _budgetService.CanUpdateBudgetAsync(dto);
+            return canUpdatedResult.ToActionResult();
+        }
     }
 }

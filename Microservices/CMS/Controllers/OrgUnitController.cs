@@ -36,5 +36,32 @@ namespace SaaS.Microservices.CMS.Controllers
             var result = await _orgUnitService.CreateAsync(dto);
             return result.ToActionResult();
         }
+
+        [HttpPost]
+        [Route("assign/user")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> AssignUser(AssignOrgUnitDTO assignOrgUnitDTO)
+        {
+            var result = await _orgUnitService.AssignOrgUnitUserAsync(assignOrgUnitDTO);
+            return result.ToActionResult();
+        }
+
+        [HttpPost]
+        [Route("assign/approver")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> AssignApprover(AssignOrgUnitDTO assignOrgUnitDTO)
+        {
+            var result = await _orgUnitService.AssignOrgUnitApproverAsync(assignOrgUnitDTO);
+            return result.ToActionResult();
+        }
+
+        [HttpPost]
+        [Route("assign/manager")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> AssignManager(AssignOrgUnitDTO assignOrgUnitDTO)
+        {
+            var result = await _orgUnitService.AssignOrgUnitManagerAsync(assignOrgUnitDTO);
+            return result.ToActionResult();
+        }
     }
 }

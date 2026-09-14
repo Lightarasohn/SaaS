@@ -146,4 +146,7 @@ CREATE INDEX IX_OrgUnitUserRole_UserId ON org_unit_user_role(user_id) WHERE is_a
 INSERT INTO expense_status (name) VALUES
     ('Beklemede'), ('Onaylandı'), ('Reddedildi');
 
+INSERT INTO org_unit_role (name) VALUES
+    ('Manager'), ('Approver'), ('User');
+
 ALTER TABLE expense ADD COLUMN reject_reason VARCHAR(512);

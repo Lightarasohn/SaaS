@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5000/api/ExpenseCategory
+@baseUrl = http://localhost:5012/api/ExpenseCategory
 # Listeleme ve Oluşturma işlemleri için 'cost-management' yetkisine sahip token
 @accessToken = senin_cost_management_yetkisine_sahip_jwt_token_in
 # Güncelleme işlemi için ek olarak Admin/SuperAdmin rolüne sahip token

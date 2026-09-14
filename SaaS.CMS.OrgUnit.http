@@ -1,0 +1,121 @@
+@baseUrl = http://localhost:5012/api/OrgUnit
+# Tüm işlemler için 'cost-management' yetkisine sahip token gereklidir.
+# Atama (Assign) işlemleri için bu token sahibinin SuperAdmin VEYA ilgili birimin (veya üst biriminin) Manager'ı olması gerekir.
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+
+### 1. Tüm Organizasyon Birimlerini (Departmanları) Getir (Get All)
+# Şirkete ait tüm birimleri hiyerarşik sırayla listeler. Level bilgisi ağaç yapısını göstermek içindir.
+GET {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
+#     {
+#       "publicId": "123e4567-e89b-12d3-a456-426614174000",
+#       "name": "Genel Müdürlük",
+#       "level": 0,
+#       "isActive": true
+#     },
+#     {
+#       "publicId": "333e4567-e89b-12d3-a456-426614174003",
+#       "name": "Yazılım Departmanı",
+#       "level": 1,
+#       "isActive": true
+#     }
+#   ]
+# }
+
+
+### 2. Yeni Organizasyon Birimi (Departman) Oluştur (Create)
+# Sisteme yeni bir birim ekler. Üst birimi (Parent) yoksa parentPublicId için "00000000-0000-0000-0000-000000000000" gönderilebilir.
+POST {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "parentPublicId": "46ee27c2-3786-43a3-9e9d-29183646de71",
+  "name": "Pazarlama"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Departman oluşturuldu",
+#   "data": {
+#     "publicId": "444e4567-e89b-12d3-a456-426614174004",
+#     "name": "Mobil Geliştirme Ekibi",
+#     "level": 2,
+#     "isActive": true
+#   }
+# }
+
+
+### 3. Birime Kullanıcı Ata (Assign User)
+# Belirli bir kullanıcıyı ilgili organizasyon birimine 'User' rolü ile atar.
+# Not: Yalnızca SuperAdmin veya (üst) Manager atama yapabilir. Çapraz firma ataması yapılamaz.
+POST {{baseUrl}}/assign/user
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "orgUnitPublicId": "444e4567-e89b-12d3-a456-426614174004"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kullanıcı başarıyla birime User olarak atandı"
+# }
+
+# Olası Hata Senaryosu - Yetkisiz İşlem (403 Forbidden):
+# {
+#   "isSuccess": false,
+#   "message": "Bu işlemi yapamazsınız"
+# }
+
+
+### 4. Birime Onaylayıcı Ata (Assign Approver)
+# Belirli bir kullanıcıyı ilgili organizasyon birimine bütçe/masraf onaylayıcısı ('Approver') rolü ile atar.
+POST {{baseUrl}}/assign/approver
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "orgUnitPublicId": "444e4567-e89b-12d3-a456-426614174004"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kullanıcı başarıyla birime Approver olarak atandı"
+# }
+
+
+### 5. Birime Yönetici Ata (Assign Manager)
+# Belirli bir kullanıcıyı ilgili organizasyon birimine yönetici ('Manager') rolü ile atar.
+# Özel İş Kuralı: Bir Manager kendi bulunduğu birime başka birini Manager olarak atayamaz (Alt birimlere atayabilir).
+POST {{baseUrl}}/assign/manager
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "orgUnitPublicId": "444e4567-e89b-12d3-a456-426614174004"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kullanıcı başarıyla birime Manager olarak atandı"
+# }
+
+# Olası Hata Senaryosu - Kendi Birimine Manager Atama Denemesi (403 Forbidden):
+# {
+#   "isSuccess": false,
+#   "message": "Bu işlemi yapamazsınız"
+# }

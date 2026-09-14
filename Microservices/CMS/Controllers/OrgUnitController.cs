@@ -30,7 +30,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Create([FromBody] CreateOrgUnitDTO dto)
         {
             var result = await _orgUnitService.CreateAsync(dto);
@@ -39,7 +38,6 @@ namespace SaaS.Microservices.CMS.Controllers
 
         [HttpPost]
         [Route("assign/user")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AssignUser(AssignOrgUnitDTO assignOrgUnitDTO)
         {
             var result = await _orgUnitService.AssignOrgUnitUserAsync(assignOrgUnitDTO);
@@ -48,7 +46,6 @@ namespace SaaS.Microservices.CMS.Controllers
 
         [HttpPost]
         [Route("assign/approver")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AssignApprover(AssignOrgUnitDTO assignOrgUnitDTO)
         {
             var result = await _orgUnitService.AssignOrgUnitApproverAsync(assignOrgUnitDTO);
@@ -57,7 +54,6 @@ namespace SaaS.Microservices.CMS.Controllers
 
         [HttpPost]
         [Route("assign/manager")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AssignManager(AssignOrgUnitDTO assignOrgUnitDTO)
         {
             var result = await _orgUnitService.AssignOrgUnitManagerAsync(assignOrgUnitDTO);

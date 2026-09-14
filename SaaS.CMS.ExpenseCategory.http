@@ -1,0 +1,82 @@
+@baseUrl = http://localhost:5000/api/ExpenseCategory
+# Listeleme ve Oluşturma işlemleri için 'cost-management' yetkisine sahip token
+@accessToken = senin_cost_management_yetkisine_sahip_jwt_token_in
+# Güncelleme işlemi için ek olarak Admin/SuperAdmin rolüne sahip token
+@adminAccessToken = senin_admin_veya_superadmin_rolune_sahip_jwt_token_in
+
+### 1. Tüm Masraf Kategorilerini Getir (Get All)
+# Aktif veya pasif tüm masraf kategorilerini alfabetik sıraya göre listeler.
+# Not: cost-management yetkisine sahip olmak gerekir.
+GET {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
+#     {
+#       "publicId": "c88e4567-e89b-12d3-a456-426614174001",
+#       "name": "Kırtasiye ve Ofis Giderleri",
+#       "isActive": true
+#     },
+#     {
+#       "publicId": "f99e4567-e89b-12d3-a456-426614174002",
+#       "name": "Seyahat Giderleri",
+#       "isActive": true
+#     }
+#   ]
+# }
+
+
+### 2. Yeni Masraf Kategorisi Oluştur (Create)
+# Sisteme yeni bir masraf kategorisi ekler.
+# Not: cost-management yetkisine sahip olmak gerekir.
+POST {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Pazarlama ve Reklam Giderleri"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kategori oluşturuldu",
+#   "data": {
+#     "publicId": "e55e4567-e89b-12d3-a456-426614174003",
+#     "name": "Pazarlama ve Reklam Giderleri",
+#     "isActive": true
+#   }
+# }
+
+# Olası Hata Senaryosu - Çakışma (409 Conflict):
+# {
+#   "isSuccess": false,
+#   "message": "Bu isimde bir kategori zaten var"
+# }
+
+
+### 3. Masraf Kategorisini Güncelle (Update)
+# Mevcut bir masraf kategorisinin adını günceller.
+# Not: cost-management yetkisi VE (Admin VEYA SuperAdmin) rolü gerekir.
+PUT {{baseUrl}}
+Authorization: Bearer {{adminAccessToken}}
+Content-Type: application/json
+
+{
+  "expenseCategoryPublicId": "e55e4567-e89b-12d3-a456-426614174003",
+  "name": "Dijital Pazarlama Giderleri"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kategori güncellendi",
+#   "data": {
+#     "publicId": "e55e4567-e89b-12d3-a456-426614174003",
+#     "name": "Dijital Pazarlama Giderleri",
+#     "isActive": true
+#   }
+# }

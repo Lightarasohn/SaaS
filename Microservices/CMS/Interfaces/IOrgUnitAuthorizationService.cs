@@ -9,5 +9,6 @@ namespace SaaS.Microservices.CMS.Interfaces
     public interface IOrgUnitAuthorizationService
     {
         Task<bool> IsAuthorizedAsync(Guid userId, int orgUnitId, params OrgUnitRoleTypes[] roles);
+        Task<List<string>> GetAuthorizedOrgUnitPathsAsync(Guid userId, params OrgUnitRoleTypes[] roles);
     }
 }

@@ -1,0 +1,172 @@
+@baseUrl = http://localhost:5012/api/Expense
+# İşlemleri yapacak kullanıcının 'cost-management' yetkisine sahip olması gerekir.
+# Onaylama/Reddetme/Güncelleme işlemleri için bu token'a sahip kullanıcının 
+# ilgili organizasyon biriminde Approver/Manager olması VEYA Admin/SuperAdmin rolünde olması gerekir.
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+
+### 1. Masrafları Getir (Get All)
+# Bütçeye, duruma göre filtreleme yapılabilir ve sadece kendi masraflarını (onlyMine=true) getirtebilirsin. 
+# Not: Eğer kullanıcı Admin/SuperAdmin değilse ve onlyMine=false ise, SADECE yetkili olduğu birimlerin masraflarını görebilir.
+GET {{baseUrl}}?budgetPublicId=c3f93ac6-a458-46b5-8045-bef34db6b7e9&statusId=&onlyMine=false
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
+#     {
+#       "publicId": "888e4567-e89b-12d3-a456-426614174001",
+#       "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+#       "expenseCategoryName": "Seyahat Giderleri",
+#       "amount": 1500.00,
+#       "status": "Beklemede",
+#       ...
+#     }
+#   ]
+# }
+
+
+### 2. Tekil Masraf Oluştur (Create)
+# Mevcut bir kategori ID'si verebilir (expenseCategoryPublicId) VEYA 
+# doğrudan isim (expenseCategoryName) yazarak yeni kategori oluşturulmasını sağlayabilirsin.
+POST {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "budgetPublicId": "c3f93ac6-a458-46b5-8045-bef34db6b7e9",
+  "expenseCategoryPublicId": null,
+  "expenseCategoryName": "Yol Masrafı",
+  "amount": 67.50,
+  "description": "Staja gidiş 14.09.2026"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Masraf eklendi",
+#   "data": { ... }
+# }
+
+
+### 3. Toplu Masraf Oluştur (Create Range)
+# Aynı bütçe altında birden fazla masraf kalemini tek seferde ekler.
+POST {{baseUrl}}/create/range
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "budgetPublicId": "123e4567-e89b-12d3-a456-426614174000",
+  "items": [
+    {
+      "expenseCategoryPublicId": "c88e4567-e89b-12d3-a456-426614174001",
+      "amount": 500.00,
+      "description": "Taksi ücreti"
+    },
+    {
+      "expenseCategoryPublicId": "f99e4567-e89b-12d3-a456-426614174002",
+      "amount": 1200.00,
+      "description": "Akşam yemeği (Müşteri ağırlama)"
+    }
+  ]
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "2 masraf eklendi",
+#   "data": [ { ... }, { ... } ]
+# }
+
+
+### 4. Tekil Masraf Onaylanabilir mi? (Can Approve)
+# Masrafın onaylanması durumunda bütçeyi aşıp aşmayacağını kontrol eder.
+# Not: Yalnızca birim Approver/Manager'ı veya Admin/SuperAdmin yapabilir.
+GET {{baseUrl}}/can-approve?expensePublicId=86885df4-0dcc-401c-903d-9114551d8bcb
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı"
+# }
+
+
+### 5. Tekil Masrafı Onayla (Approve)
+# Beklemedeki bir masrafı onaylar ve bütçenin 'UsedAmount' kısmını artırır.
+POST {{baseUrl}}/approve
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expensePublicId": "2756c08f-7665-41b5-9e37-fc61aa674f4c"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı"
+# }
+
+
+### 6. Tekil Masrafı Reddet (Reject)
+# Beklemedeki bir masrafı reddeder. İsteğe bağlı ret sebebi belirtilebilir.
+POST {{baseUrl}}/reject
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expensePublicId": "888e4567-e89b-12d3-a456-426614174001",
+  "rejectReason": "Fatura tarihi hatalı, lütfen düzeltip tekrar girin."
+}
+
+
+### 7. Toplu Masraf Onaylanabilir mi? (Can Approve Range)
+# Birden fazla masrafın onaylanması durumunda bütçeleri aşıp aşmayacağını kontrol eder.
+POST {{baseUrl}}/can-approve/range
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expensePublicIdList": [
+    "888e4567-e89b-12d3-a456-426614174001",
+    "999e4567-e89b-12d3-a456-426614174002"
+  ]
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Masraflar onaylanabilir",
+#   "data": [ "888e4567...", "999e4567..." ]
+# }
+
+
+### 8. Toplu Masraf Onayla (Approve Range)
+# Birden fazla masrafı tek seferde onaylar ve ilgili bütçeleri günceller.
+POST {{baseUrl}}/approve/range
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expensePublicIdList": [
+    "888e4567-e89b-12d3-a456-426614174001",
+    "999e4567-e89b-12d3-a456-426614174002"
+  ]
+}
+
+
+### 9. Masraf Güncelle (Update)
+# Beklemedeki bir masrafın kategorisini, tutarını veya açıklamasını günceller.
+# Not: Yalnızca Approver/Manager veya Admin/SuperAdmin güncelleyebilir.
+PUT {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expensePublicId": "888e4567-e89b-12d3-a456-426614174001",
+  "expenseCategoryPublicId": "c88e4567-e89b-12d3-a456-426614174001",
+  "amount": 1750.50,
+  "description": "Ankara müşteri ziyareti uçak bileti (Fiyat güncellendi)"
+}

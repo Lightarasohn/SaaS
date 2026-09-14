@@ -53,18 +53,19 @@ namespace SaaS.Microservices.CMS.Services
                 return Result.Unauthorized("Geçersiz Oturum");
 
             var expense = await _cmsContext.Expenses
+                    .Include(e => e.Budget)
                     .FirstOrDefaultAsync(e => e.PublicId == dto.ExpensePublicId);
 
-                if (expense == null || expense.IsDeleted)
-                    return Result.NotFound("Masraf bulunamadı");
+            if (expense == null || expense.IsDeleted)
+                return Result.NotFound("Masraf bulunamadı");
 
-                if (expense.StatusId != (int)ExpenseStatusTypes.Pending)
-                    return Result.Conflict("Bu masraf zaten işleme alınmış");
+            if (expense.StatusId != (int)ExpenseStatusTypes.Pending)
+                return Result.Conflict("Bu masraf zaten işleme alınmış");
 
-                var budget = expense.Budget;
+            var budget = expense.Budget;
 
-                if (budget == null || budget.IsDeleted)
-                    return Result.NotFound("Bütçe bulunamadı");
+            if (budget == null || budget.IsDeleted)
+                return Result.NotFound("Bütçe bulunamadı");
 
             var role = _currentUser.Role;
 
@@ -122,6 +123,7 @@ namespace SaaS.Microservices.CMS.Services
                 return Result<List<Guid>>.Fail("Bir masrafı sadece bir kez işleme alabilirsiniz");
 
             var expenses = await _cmsContext.Expenses
+                .Include(e => e.Budget)
                 .Where(e => ids.Contains(e.PublicId))
                 .ToListAsync();
 
@@ -260,19 +262,20 @@ namespace SaaS.Microservices.CMS.Services
 
             var expenses = await _cmsContext.Expenses
                 .AsNoTracking()
+                .Include(e => e.Budget)
                 .Where(e => ids.Contains(e.PublicId))
                 .ToListAsync();
 
             var role = _currentUser.Role;
 
-            foreach(var expense in expenses)
+            foreach (var expense in expenses)
             {
                 var isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
                 var isUnitApprover = await _orgUnitAuthService.IsAuthorizedAsync(
                     userId.Value, expense.Budget.OrgUnitId, OrgUnitRoleTypes.Manager, OrgUnitRoleTypes.Approver);
 
                 if (!isCompanyAdmin && !isUnitApprover)
-                    return Result<List<Guid>>.Forbidden("Bu işlemi yapamazsınız");    
+                    return Result<List<Guid>>.Forbidden("Bu işlemi yapamazsınız");
             }
 
             // 1. Bulunamayanlar
@@ -341,9 +344,55 @@ namespace SaaS.Microservices.CMS.Services
             if (budget == null)
                 return Result<ExpenseDTO>.NotFound("Bütçe bulunamadı");
 
-            var expenseCategory = await _cmsContext.ExpenseCategories
-                .AsNoTracking()
-                .FirstOrDefaultAsync(ec => ec.PublicId == dto.ExpenseCategoryPublicId);
+            ExpenseCategory expenseCategory;
+
+            if (dto.ExpenseCategoryPublicId != null)
+            {
+                var found = await _cmsContext.ExpenseCategories
+                    .FirstOrDefaultAsync(ec => ec.PublicId == dto.ExpenseCategoryPublicId);
+
+                if (found == null)
+                    return Result<ExpenseDTO>.NotFound("Masraf kategorisi bulunamadı");
+
+                if (!found.IsActive)
+                    return Result<ExpenseDTO>.Fail("Pasif bir kategoriye masraf eklenemez");
+
+                expenseCategory = found;
+            }
+            else
+            {
+                var name = dto.ExpenseCategoryName?.Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                    return Result<ExpenseDTO>.Fail("Kategori seçilmeli veya adı belirtilmeli");
+
+                var existing = await _cmsContext.ExpenseCategories
+                    .FirstOrDefaultAsync(ec => ec.Name.ToLower() == name.ToLower());
+
+                if (existing != null)
+                {
+                    if (!existing.IsActive)
+                        return Result<ExpenseDTO>.Fail("Pasif bir kategoriye masraf eklenemez");
+                    expenseCategory = existing;
+                }
+                else
+                {
+                    expenseCategory = new ExpenseCategory { CompanyId = companyId.Value, Name = name, IsActive = true };
+                    await _cmsContext.ExpenseCategories.AddAsync(expenseCategory);
+
+                    try
+                    {
+                        await _cmsContext.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Eşzamanlı istek aynı ismi az önce oluşturmuş olabilir
+                        var raceWinner = await _cmsContext.ExpenseCategories
+                            .FirstOrDefaultAsync(ec => ec.Name.ToLower() == name.ToLower());
+                        if (raceWinner == null) throw;
+                        expenseCategory = raceWinner;
+                    }
+                }
+            }
 
             if (expenseCategory == null)
                 return Result<ExpenseDTO>.NotFound("Masraf kategorisi bulunamadı");
@@ -476,26 +525,44 @@ namespace SaaS.Microservices.CMS.Services
         }
 
         public async Task<Result<List<ExpenseDTO>>> GetAllAsync(
-            Guid? budgetPublicId,
-            int? statusId,
-            bool onlyMine)
+    Guid? budgetPublicId,
+    int? statusId,
+    bool onlyMine)
         {
+            var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
+
+            if (userId == null)
+                return Result<List<ExpenseDTO>>.Unauthorized("Geçersiz oturum");
+
+            bool isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
+
             var query = _cmsContext.Expenses.AsNoTracking().AsQueryable();
+
+            if (!isCompanyAdmin)
+            {
+                if (onlyMine)
+                {
+                    query = query.Where(e => e.UserId == userId);
+                }
+                else
+                {
+                    var scopedPaths = await _orgUnitAuthService.GetAuthorizedOrgUnitPathsAsync(
+                        userId.Value, OrgUnitRoleTypes.Manager, OrgUnitRoleTypes.Approver);
+
+                    // Kendi masrafları + yetkili olduğu birimlerin (ve alt birimlerinin) tüm masrafları
+                    query = query.Where(e =>
+                        e.UserId == userId ||
+                        scopedPaths.Any(p => EF.Functions.Like(e.Budget.OrgUnit.Path, p + "%")));
+                }
+            }
+            // isCompanyAdmin ise hiçbir ek filtre yok — zaten tüm şirketi görüyor
 
             if (budgetPublicId != null)
                 query = query.Where(e => e.Budget.PublicId == budgetPublicId);
 
             if (statusId != null)
                 query = query.Where(e => e.StatusId == statusId);
-
-            if (onlyMine)
-            {
-                var userId = _currentUser.UserId;
-                if (userId == null)
-                    return Result<List<ExpenseDTO>>.Unauthorized("Geçersiz oturum");
-
-                query = query.Where(e => e.UserId == userId);
-            }
 
             var rows = await query
                 .OrderByDescending(e => e.CreateDate)
@@ -515,7 +582,6 @@ namespace SaaS.Microservices.CMS.Services
                 })
                 .ToListAsync();
 
-            // Kullanıcı adları Master DB'de: ayrı sorgu, bellekte eşleştirme
             var userIds = rows.Select(r => r.UserId).Distinct().ToList();
 
             var names = await _masterContext.AppUsers
@@ -525,18 +591,9 @@ namespace SaaS.Microservices.CMS.Services
 
             var list = rows
                 .Select(r => new ExpenseDTO(
-                    r.PublicId,
-                    r.UserId,
-                    r.BudgetPublicId,
-                    r.CategoryPublicId,
-                    r.StatusId,
-                    r.CategoryName,
-                    r.Amount,
-                    r.Description,
-                    r.StatusName,
-                    names.GetValueOrDefault(r.UserId, "—"),
-                    r.CreateDate,
-                    r.OrgUnitName))
+                    r.PublicId, r.UserId, r.BudgetPublicId, r.CategoryPublicId, r.StatusId,
+                    r.CategoryName, r.Amount, r.Description, r.StatusName,
+                    names.GetValueOrDefault(r.UserId, "—"), r.CreateDate, r.OrgUnitName))
                 .ToList();
 
             return Result<List<ExpenseDTO>>.Success(list);
@@ -552,10 +609,14 @@ namespace SaaS.Microservices.CMS.Services
             var role = _currentUser.Role;
 
             var expense = await _cmsContext.Expenses
+                .Include(e => e.Budget)
                 .FirstOrDefaultAsync(e => e.PublicId == dto.ExpensePublicId);
 
             if (expense == null || expense.IsDeleted)
                 return Result.NotFound("Masraf bulunamadı");
+
+            if (expense.Budget == null)
+                return Result.NotFound("Bütçe bulunamadı");
 
             var isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
             var isUnitApprover = await _orgUnitAuthService.IsAuthorizedAsync(
@@ -602,8 +663,7 @@ namespace SaaS.Microservices.CMS.Services
             if (!isCompanyAdmin && !isUnitApprover)
                 return Result<ExpenseDTO>.Forbidden("Bu işlemi yapamazsınız");
 
-            if (expense.UserId != userId.Value && !isUnitApprover)
-                return Result<ExpenseDTO>.Forbidden("Yalnızca kendi masrafınızı düzenleyebilirsiniz");
+            // İkinci "sahiplik" kontrolü kaldırıldı — tasarım gereği owner değil, Approver/Admin düzenliyor.
 
             // İşleme alınmış masraf değiştirilemez
             if (expense.StatusId != (int)ExpenseStatusTypes.Pending)

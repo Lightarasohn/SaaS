@@ -7,7 +7,8 @@ namespace SaaS.Microservices.CMS.DTOs.ExpenseDTOs
 {
     public record CreateExpenseDTO(
         Guid BudgetPublicId,
-        Guid ExpenseCategoryPublicId,
+        Guid? ExpenseCategoryPublicId,   // artık nullable
+        string? ExpenseCategoryName,     // yeni
         decimal Amount,
         string? Description
     );

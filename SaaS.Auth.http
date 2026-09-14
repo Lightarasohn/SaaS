@@ -1,0 +1,185 @@
+@baseUrl = http://localhost:5012/api/Auth
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+@refreshToken = senin_refresh_token_in
+
+### 1. Yeni Şirket ile Kayıt Ol (Register With Company)
+POST {{baseUrl}}/register/with/company
+Content-Type: application/json
+
+{
+  "companyName": "Gobito Kurumsal Çözümler",
+  "name": "Onur Owner",
+  "email": "onur.demir.dev@outlook.com",
+  "password": "Superguclusifre123."
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Başarıyla kayıt olundu. Lütfen giriş yapmadan önce e-postanıza gelen link ile kaydınızı tamamlayınız.",
+#   "data": "raw-recovery-key-string"
+# }
+
+
+### 2. Mevcut Şirkete Kayıt Ol (Register To Company)
+POST {{baseUrl}}/register/to/company
+Content-Type: application/json
+
+{
+  "inviteCode": "c53e820b-e056-415b-86b5-a3bce05c7243",
+  "name": "Onur User",
+  "email": "onurdemir1771@gmail.com",
+  "password": "Superguclusifre123."
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Başarıyla kayıt olundu.\nLütfen giriş yapmadan önce e-postanıza gelen link ile kaydınızı tamamlayınız.",
+#   "data": "raw-recovery-key-string"
+# }
+
+
+### 3. Aktivasyon Token Doğrulaması (Validate Verify Account)
+GET {{baseUrl}}/validate-verify-account?rawToken=aktivasyon_token_degeri
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Hesap aktifleştirilebilir"
+# }
+
+
+### 4. Hesabı Doğrula / Aktifleştir (Verify Account)
+POST {{baseUrl}}/verify-account
+Content-Type: application/json
+
+{
+  "rawToken": "ZGHYZUUPZdwh7IdoEFgl-8VAItvy_rRNHg87YQtIeCQ"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Hesap aktifleştirildi"
+# }
+
+
+### 5. Giriş Yap (Login)
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "onur.demir.dev@outlook.com",
+  "password": "Superguclusifre123."
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Giriş Başarılı",
+#   "data": {
+#     "accessToken": "eyJhbGci...",
+#     "accessTokenExpiresAt": "2026-09-14T14:00:00Z",
+#     "refreshToken": "secure-refresh-token",
+#     "refreshTokenExpiresAt": "2026-09-21T12:00:00Z"
+#   }
+# }
+
+
+### 6. Parolamı Unuttum (Forgot Password)
+POST {{baseUrl}}/forgot-password
+Content-Type: application/json
+
+{
+  "email": "onur@techsolutions.com"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "E-postanıza parola yenileme linki gönderilmiştir."
+# }
+
+
+### 7. Parola Yenileme Token Doğrulaması (Validate Change Password)
+GET {{baseUrl}}/validate-change-password?token=parola_yenileme_token_degeri
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Parola yenilenebilir"
+# }
+
+
+### 8. Parola Değiştir (Change Password)
+POST {{baseUrl}}/change-password?token=parola_yenileme_token_degeri
+Content-Type: application/json
+
+{
+  "newPassword": "NewStrongPassword456!"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Parolanız yenilenmiştir"
+# }
+
+
+### 9. Token Yenileme (Refresh Token)
+POST {{baseUrl}}/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Token yenilendi",
+#   "data": {
+#     "accessToken": "yeni_eyJhbGci...",
+#     "accessTokenExpiresAt": "2026-09-14T15:00:00Z",
+#     "refreshToken": "yeni-secure-refresh-token",
+#     "refreshTokenExpiresAt": "2026-09-21T13:00:00Z"
+#   }
+# }
+
+
+### 10. Çıkış Yap (Logout)
+POST {{baseUrl}}/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Çıkış Yapıldı"
+# }
+
+
+### 11. Kullanıcı Bilgilerini Getir (Me) - Yetki Gerektirir (Authorize)
+GET {{baseUrl}}/me
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": {
+#     "publicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+#     "name": "Onur",
+#     "email": "onur@techsolutions.com",
+#     "isVerified": true,
+#     "passwordChangedAt": "2026-09-10T10:00:00Z",
+#     "createDate": "2026-09-01T08:00:00Z",
+#     "companyName": "Tech Solutions A.Ş.",
+#     "roleName": "SuperAdmin",
+#     "orgUnitId": 0
+#   }
+# }

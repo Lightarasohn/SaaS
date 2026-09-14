@@ -20,5 +20,5 @@ public class CurrentUser : ICurrentUser
 
     public string? Role => User?.FindFirst(ClaimTypes.Role)?.Value;
 
-    public string? Name => User?.FindFirst(ClaimTypes.GivenName)?.Value;
+    public string? Name => User?.FindFirst(JwtRegisteredClaimNames.GivenName)?.Value;
 }

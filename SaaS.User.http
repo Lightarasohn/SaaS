@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:5012/api/UserManagemet
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+
+### 1. Şirketteki Tüm Kullanıcıları Getir (Get All Company Users)
+# Oturumu açık olan (token'dan gelen) şirketin tüm kullanıcılarını listeler.
+# Not: Sadece Admin veya SuperAdmin rolüne sahip kullanıcılar bu isteği yapabilir.
+GET {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
+#     {
+#       "publicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+#       "role": "SuperAdmin",
+#       "name": "Onur",
+#       "email": "onur@techsolutions.com",
+#       "isVerified": true,
+#       "createDate": "2026-09-01T08:00:00Z"
+#     },
+#     {
+#       "publicId": "123e4567-e89b-12d3-a456-426614174000",
+#       "role": "User",
+#       "name": "Ahmet Yılmaz",
+#       "email": "ahmet@techsolutions.com",
+#       "isVerified": false,
+#       "createDate": "2026-09-12T10:30:00Z"
+#     }
+#   ]
+# }
+
+
+### 2. Kullanıcının Rolünü Değiştir (Change Role)
+# Şirkete ait bir kullanıcının rolünü günceller.
+# Not: Sadece Admin veya SuperAdmin rolüne sahip kullanıcılar bu isteği yapabilir.
+PUT {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "userPublicId": "123e4567-e89b-12d3-a456-426614174000",
+  "roleId": 2 
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Kullanıcı rolü başarıyla değiştirildi"
+# }
+
+# Olası Hata Senaryosu - Rol ID Bulunamadı (404 Not Found):
+# {
+#   "isSuccess": false,
+#   "message": "Rol bulunamadı"
+# }
+
+# Olası Hata Senaryosu - Yetkisiz İşlem / Başka Şirketin Kullanıcısı (403 Forbidden):
+# {
+#   "isSuccess": false,
+#   "message": "Bu işlemi yapamazsınız"
+# }

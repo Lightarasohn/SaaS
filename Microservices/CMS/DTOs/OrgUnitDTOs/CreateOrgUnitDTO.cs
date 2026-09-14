@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace SaaS.Microservices.CMS.DTOs.OrgUnitDTOs
 {
     public record CreateOrgUnitDTO(
-        Guid ParentPublicId,
+        Guid? ParentPublicId,
         string Name
     );
 }

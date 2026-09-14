@@ -86,6 +86,7 @@ builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddHostedService<EmailBackgroundService>();
 builder.Services.AddScoped<IModuleService, ModuleService>();
 builder.Services.AddSingleton<IAuthorizationHandler, ModuleAccessHandler>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // DI (Microservices)
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();

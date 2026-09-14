@@ -37,36 +37,52 @@ namespace SaaS.Microservices.CMS.Services
             var assignerRole = _currentUser.Role;
 
             if (companyId == null || userId == null)
-                return Result.Unauthorized("Geçersiz Oturum"); // Typo düzeltildi (Geçeresiz -> Geçersiz)
+                return Result.Unauthorized("Geçersiz Oturum");
+
+            var company = await _masterContext.Companies.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.PublicId == companyId);
+
+            if (company == null)
+                return Result.NotFound("Organizasyon bulunamadı");
 
             var user = await _masterContext.AppUsers.FirstOrDefaultAsync(u => u.PublicId == userPublicId);
             if (user == null)
                 return Result.NotFound("Kullanıcı bulunamadı");
 
+            // YENİ: kullanıcı gerçekten bu şirkete mi ait — cross-tenant atamayı engeller
+            if (user.CompanyId != company.Id)
+                return Result.Forbidden("Bu işlemi yapamazsınız");
+
             var orgUnit = await _cmsContext.OrgUnits.AsNoTracking().FirstOrDefaultAsync(o => o.PublicId == orgUnitPublicId);
             if (orgUnit == null)
                 return Result.NotFound("Birim bulunamadı");
+
+            // YENİ: pasif birime rol atanamaz
+            if (!orgUnit.IsActive)
+                return Result.Fail("Pasif birime rol atanamaz");
 
             var roleEntity = await _cmsContext.OrgUnitRoles.AsNoTracking().FirstOrDefaultAsync(o => o.Name == roleType.ToString());
             if (roleEntity == null)
                 return Result.NotFound("Rol bulunamadı");
 
+            // DÜZELTİLDİ: IsActive filtresi + CreateDate'e göre en güncel satır garantisi eklendi
             var assignerUserOrgUnitRole = await _cmsContext.OrgUnitUserRoles
                 .AsNoTracking()
                 .Include(ousr => ousr.OrgUnit)
                 .Include(ousr => ousr.Role)
-                .FirstOrDefaultAsync(ousr =>
+                .Where(ousr =>
                     ousr.CompanyId == companyId &&
-                    ousr.UserId == userId);
+                    ousr.UserId == userId &&
+                    ousr.IsActive)
+                .OrderByDescending(ousr => ousr.CreateDate)
+                .FirstOrDefaultAsync();
 
             bool isSuperAdmin = assignerRole == RoleTypes.SuperAdmin.ToString();
 
-            // Yetki kontrolü genel mantığı
             bool isHigherManager = assignerUserOrgUnitRole != null
                 && assignerUserOrgUnitRole.Role.Name == OrgUnitRoleTypes.Manager.ToString()
                 && orgUnit.Path.StartsWith(assignerUserOrgUnitRole.OrgUnit.Path);
 
-            // Manager atamasına özel ekstra iş kuralı: Kendi bulunduğu birime manager atayamaz
             if (roleType == OrgUnitRoleTypes.Manager && isHigherManager)
             {
                 if (orgUnit.Path == assignerUserOrgUnitRole!.OrgUnit.Path)
@@ -75,40 +91,39 @@ namespace SaaS.Microservices.CMS.Services
                 }
             }
 
-            if (isSuperAdmin || isHigherManager)
+            if (!isSuperAdmin && !isHigherManager)
+                return Result.Forbidden("Bu işlemi yapamazsınız");
+
+            // DÜZELTİLDİ: aynı filtre burada da eklendi
+            var exists = await _cmsContext.OrgUnitUserRoles
+                .Where(o =>
+                    o.CompanyId == companyId &&
+                    o.UserId == user.PublicId &&
+                    o.IsActive)
+                .OrderByDescending(o => o.CreateDate)
+                .FirstOrDefaultAsync();
+
+            if (exists != null)
+                exists.IsActive = false;
+
+            var orgUnitUserRole = new OrgUnitUserRole
             {
-                user.OrgUnitId = orgUnit.PublicId;
-                user.UpdateDate = DateTime.UtcNow;
-                user.UpdateUser = userId;
-                await _masterContext.SaveChangesAsync();
+                CompanyId = companyId.Value,
+                OrgUnitId = orgUnit.Id,
+                UserId = user.PublicId,
+                RoleId = roleEntity.Id,
+                IsActive = true,
+                CreateDate = DateTime.UtcNow
+            };
 
-                var exists = await _cmsContext.OrgUnitUserRoles
-                    .FirstOrDefaultAsync(o =>
-                        o.CompanyId == companyId &&
-                        o.UserId == user.PublicId &&
-                        o.IsActive == true);
+            await _cmsContext.OrgUnitUserRoles.AddAsync(orgUnitUserRole);
+            await _cmsContext.SaveChangesAsync();
 
-                if (exists != null)
-                {
-                    exists.IsActive = false;
-                }
+            // KALDIRILDI: user.OrgUnitId = orgUnit.PublicId; ve buna bağlı _masterContext.SaveChangesAsync()
+            // "hangi birimde çalışıyor" ile "hangi birimde onay yetkisi var" artık birbirine karışmıyor.
+            // Ayrıca bu satırların kaldırılmasıyla Master/CMS arası atomiklik sorunu da kendiliğinden ortadan kalktı.
 
-                var orgUnitUserRole = new OrgUnitUserRole
-                {
-                    CompanyId = companyId.Value,
-                    OrgUnitId = orgUnit.Id,
-                    UserId = user.PublicId,
-                    RoleId = roleEntity.Id,
-                    CreateDate = DateTime.UtcNow
-                };
-
-                await _cmsContext.OrgUnitUserRoles.AddAsync(orgUnitUserRole);
-                await _cmsContext.SaveChangesAsync();
-
-                return Result.Success($"Kullanıcı başarıyla birime {roleType} olarak atandı");
-            }
-
-            return Result.Forbidden("Bu işlemi yapamazsınız");
+            return Result.Success($"Kullanıcı başarıyla birime {roleType} olarak atandı");
         }
 
         public Task<Result> AssignOrgUnitApproverAsync(AssignOrgUnitDTO dto) =>
@@ -130,7 +145,7 @@ namespace SaaS.Microservices.CMS.Services
             string parentPath = "/";
             int? parentId = null;
 
-            if (dto.ParentPublicId != Guid.Empty)
+            if (dto.ParentPublicId.HasValue && dto.ParentPublicId.Value != Guid.Empty)
             {
                 var parent = await _cmsContext.OrgUnits
                     .FirstOrDefaultAsync(d => d.PublicId == dto.ParentPublicId);

@@ -29,7 +29,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Create([FromBody] CreateBudgetDTO createBudgetDTO)
         {
             var createdResult = await _budgetService.CreateAsync(createBudgetDTO);
@@ -37,7 +36,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPut]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update([FromBody] UpdateBudgetDTO dto)
         {
             var updatedResult = await _budgetService.UpdateBudgetAsync(dto);

@@ -32,5 +32,16 @@ namespace SaaS.Microservices.CMS.Services
 
             return candidatePaths.Any(p => target.Path.StartsWith(p));
         }
+
+        public async Task<List<string>> GetAuthorizedOrgUnitPathsAsync(Guid userId, params OrgUnitRoleTypes[] roles)
+        {
+            var roleNames = roles.Select(r => r.ToString()).ToList();
+
+            return await _context.OrgUnitUserRoles
+                .AsNoTracking()
+                .Where(r => r.UserId == userId && r.IsActive && roleNames.Contains(r.Role.Name))
+                .Join(_context.OrgUnits, r => r.OrgUnitId, o => o.Id, (r, o) => o.Path)
+                .ToListAsync();
+        }
     }
 }

@@ -9,6 +9,8 @@ using SaaS.Interfaces;
 using SaaS.Microservices.CMS.DTOs.BudgetDTOs;
 using SaaS.Microservices.CMS.Interfaces;
 using SaaS.Microservices.CMS.Models;
+using SaaS.Microservices.CMS.Utils;
+using SaaS.Utils;
 
 namespace SaaS.Microservices.CMS.Services
 {
@@ -16,12 +18,14 @@ namespace SaaS.Microservices.CMS.Services
     {
         private readonly CMSContext _context;
         private readonly ICurrentUser _currentUser;
+        private readonly IOrgUnitAuthorizationService _orgUnitAuthService;
         private readonly ILogger<BudgetService> _logger;
 
-        public BudgetService(CMSContext context, ICurrentUser currentUser, ILogger<BudgetService> logger)
+        public BudgetService(CMSContext context, ICurrentUser currentUser, IOrgUnitAuthorizationService orgUnitAuthService, ILogger<BudgetService> logger)
         {
             _context = context;
             _currentUser = currentUser;
+            _orgUnitAuthService = orgUnitAuthService;
             _logger = logger;
         }
 
@@ -60,6 +64,7 @@ namespace SaaS.Microservices.CMS.Services
         {
             var companyId = _currentUser.CompanyId;
             var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
 
             if (companyId == null || userId == null)
                 return Result<BudgetDTO>.Unauthorized("Geçersiz oturum");
@@ -69,6 +74,12 @@ namespace SaaS.Microservices.CMS.Services
 
             if (orgUnit == null)
                 return Result<BudgetDTO>.NotFound("Birim bulunamadı");
+
+            bool isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
+            bool isUnitManager = await _orgUnitAuthService.IsAuthorizedAsync(userId.Value, orgUnit.Id, OrgUnitRoleTypes.Manager);
+
+            if (!isCompanyAdmin && !isUnitManager)
+                return Result<BudgetDTO>.Forbidden("Bu işlemi yapamazsınız");
 
             if (!orgUnit.IsActive)
                 return Result<BudgetDTO>.Fail("Pasif birime bütçe tanımlanamaz");
@@ -117,6 +128,7 @@ namespace SaaS.Microservices.CMS.Services
         public async Task<Result> CanUpdateBudgetAsync(CanUpdateBudgetDTO dto)
         {
             var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
 
             if (userId == null)
                 return Result.Unauthorized("Geçersiz oturum");
@@ -128,6 +140,15 @@ namespace SaaS.Microservices.CMS.Services
 
             if (budget == null)
                 return Result.NotFound("Bütçe bulunamadı");
+
+            if (!budget.OrgUnit.IsActive)
+                return Result.Fail("Pasif birimin bütçesi güncellenemez");
+
+            bool isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
+            bool isUnitManager = await _orgUnitAuthService.IsAuthorizedAsync(userId.Value, budget.OrgUnitId, OrgUnitRoleTypes.Manager);
+
+            if (!isCompanyAdmin && !isUnitManager)
+                return Result.Forbidden("Bu işlemi yapamazsınız");
 
             if (!budget.OrgUnit.IsActive)
                 return Result.Fail("Pasif birimin bütçesi güncellenemez");
@@ -151,6 +172,7 @@ namespace SaaS.Microservices.CMS.Services
         public async Task<Result<BudgetDTO>> UpdateBudgetAsync(UpdateBudgetDTO dto)
         {
             var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
 
             if (userId == null)
                 return Result<BudgetDTO>.Unauthorized("Geçersiz oturum");
@@ -161,6 +183,15 @@ namespace SaaS.Microservices.CMS.Services
 
             if (budget == null)
                 return Result<BudgetDTO>.NotFound("Bütçe bulunamadı");
+
+            if (!budget.OrgUnit.IsActive)
+                return Result<BudgetDTO>.Fail("Pasif birimin bütçesi güncellenemez");
+
+            bool isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
+            bool isUnitManager = await _orgUnitAuthService.IsAuthorizedAsync(userId.Value, budget.OrgUnitId, OrgUnitRoleTypes.Manager);
+
+            if (!isCompanyAdmin && !isUnitManager)
+                return Result<BudgetDTO>.Forbidden("Bu işlemi yapamazsınız");
 
             if (!budget.OrgUnit.IsActive)
                 return Result<BudgetDTO>.Fail("Pasif birimin bütçesi güncellenemez");

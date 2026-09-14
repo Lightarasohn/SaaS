@@ -113,6 +113,8 @@ CREATE TABLE expense (
 
 -- Tenant filtresi her sorguda çalışıyor
 CREATE INDEX IX_ExpenseCategory_CompanyId ON expense_category(company_id);
+CREATE UNIQUE INDEX UX_ExpenseCategory_Company_Name
+    ON expense_category(company_id, lower(name));
 CREATE INDEX IX_OrgUnit_CompanyId ON org_unit(company_id);
 CREATE INDEX IX_Budget_CompanyId ON budget(company_id);
 CREATE INDEX IX_Expense_CompanyId ON expense(company_id);

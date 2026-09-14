@@ -37,7 +37,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpGet("can-approve")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> CanApprove([FromQuery] Guid expensePublicId)
         {
             var canApproveExpenseResult = await _expenseService.CanApproveAsync(expensePublicId);
@@ -45,7 +44,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost("approve")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Approve([FromBody] ApproveExpenseDTO approveExpenseDTO)
         {
             var approveResult = await _expenseService.ApproveAsync(approveExpenseDTO);
@@ -53,7 +51,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost("reject")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Reject([FromBody] RejectExpenseDTO rejectExpenseDTO)
         {
             var rejectResult = await _expenseService.RejectAsync(rejectExpenseDTO);
@@ -69,7 +66,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost("approve/range")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> ApproveRange([FromBody] ApproveRangeExpenseDTO approveRangeExpenseDTO)
         {
             var approvedRangeResult = await _expenseService.ApproveRangeAsync(approveRangeExpenseDTO);
@@ -77,7 +73,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPost("can-approve/range")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> CanApproveRange([FromBody] CanApproveRangeExpenseDTO canApproveRangeExpenseDTO)
         {
             var canApprovedRangeResult = await _expenseService.CanApproveRangeAsync(canApproveRangeExpenseDTO);
@@ -85,7 +80,6 @@ namespace SaaS.Microservices.CMS.Controllers
         }
 
         [HttpPut]
-        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update([FromBody] UpdateExpenseDTO updateExpenseDTO)
         {
             var updatedResult = await _expenseService.UpdateExpenseAsync(updateExpenseDTO);

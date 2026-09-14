@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:5012/api/Modules
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+
+### 1. Şirketin Modül Erişimlerini Getir (Get Modules)
+# Kullanıcının token'ındaki company_id'ye göre aktif modülleri ve şirketin bu modüllere erişimi olup olmadığını (enabled) listeler.
+GET {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
+#     {
+#       "moduleKey": "HR_MANAGEMENT",
+#       "name": "İnsan Kaynakları Yönetimi",
+#       "enabled": true
+#     },
+#     {
+#       "moduleKey": "CRM",
+#       "name": "Müşteri İlişkileri Yönetimi",
+#       "enabled": true
+#     },
+#     {
+#       "moduleKey": "ACCOUNTING_PRO",
+#       "name": "Gelişmiş Muhasebe",
+#       "enabled": false
+#     }
+#   ]
+# }

@@ -11,10 +11,11 @@ namespace SaaS.Database.Contexts.CMS
     public partial class CMSContext : DbContext
     {
         public Guid? CurrentCompanyId { get; set; }
+
         partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<OrgUnit>()
-            .HasQueryFilter(d => d.CompanyId == CurrentCompanyId);
+                .HasQueryFilter(d => d.CompanyId == CurrentCompanyId);
 
             modelBuilder.Entity<ExpenseCategory>()
                 .HasQueryFilter(ec => ec.CompanyId == CurrentCompanyId);
@@ -24,6 +25,9 @@ namespace SaaS.Database.Contexts.CMS
 
             modelBuilder.Entity<Expense>()
                 .HasQueryFilter(e => e.CompanyId == CurrentCompanyId && e.IsDeleted == false);
+
+            modelBuilder.Entity<OrgUnitUserRole>()
+                .HasQueryFilter(our => our.CompanyId == CurrentCompanyId);
         }
     }
 }

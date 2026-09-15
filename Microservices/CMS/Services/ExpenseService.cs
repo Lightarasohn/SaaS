@@ -344,6 +344,9 @@ namespace SaaS.Microservices.CMS.Services
             if (budget == null)
                 return Result<ExpenseDTO>.NotFound("Bütçe bulunamadı");
 
+            if (!budget.OrgUnit.IsActive)
+                return Result<ExpenseDTO>.Fail("Pasif birime masraf eklenemez");
+
             ExpenseCategory expenseCategory;
 
             if (dto.ExpenseCategoryPublicId != null)
@@ -432,10 +435,14 @@ namespace SaaS.Microservices.CMS.Services
                     expenseCategory.Name,
                     expense.Amount,
                     expense.Description,
+                    expense.RejectReason,
+                    budget.Month,
+                    budget.Year,
                     STATUS_NAME_PENDING,
                     _currentUser.Name ?? "—",
                     expense.CreateDate,
-                    budget.OrgUnit.Name),
+                    budget.OrgUnit.Name,
+                    budget.OrgUnit.IsActive),
                 "Masraf eklendi");
         }
 
@@ -461,6 +468,9 @@ namespace SaaS.Microservices.CMS.Services
 
             if (budget == null)
                 return Result<List<ExpenseDTO>>.NotFound("Bütçe bulunamadı");
+
+            if (!budget.OrgUnit.IsActive)
+                return Result<List<ExpenseDTO>>.Fail("Pasif birime masraf eklenemez");
 
             // Tüm kategorileri tek sorguda çek
             var categoryIds = dto.Items.Select(i => i.ExpenseCategoryPublicId).Distinct().ToList();
@@ -515,10 +525,14 @@ namespace SaaS.Microservices.CMS.Services
                 idToCategory[e.ExpenseCategoryId].Name,
                 e.Amount,
                 e.Description,
+                e.RejectReason,
+                budget.Month,
+                budget.Year,
                 STATUS_NAME_PENDING,
                 _currentUser.Name ?? "—",
                 e.CreateDate,
-                budget.OrgUnit.Name
+                budget.OrgUnit.Name,
+                budget.OrgUnit.IsActive
             )).ToList();
 
             return Result<List<ExpenseDTO>>.Success(list, $"{list.Count} masraf eklendi");
@@ -577,8 +591,12 @@ namespace SaaS.Microservices.CMS.Services
                     StatusName = e.Status.Name,
                     e.Amount,
                     e.Description,
+                    e.RejectReason,
+                    BudgetMonth = e.Budget.Month,
+                    BudgetYear = e.Budget.Year,
                     e.CreateDate,
-                    OrgUnitName = e.Budget.OrgUnit.Name
+                    OrgUnitName = e.Budget.OrgUnit.Name,
+                    OrgUnitIsActive = e.Budget.OrgUnit.IsActive
                 })
                 .ToListAsync();
 
@@ -592,8 +610,8 @@ namespace SaaS.Microservices.CMS.Services
             var list = rows
                 .Select(r => new ExpenseDTO(
                     r.PublicId, r.UserId, r.BudgetPublicId, r.CategoryPublicId, r.StatusId,
-                    r.CategoryName, r.Amount, r.Description, r.StatusName,
-                    names.GetValueOrDefault(r.UserId, "—"), r.CreateDate, r.OrgUnitName))
+                    r.CategoryName, r.Amount, r.Description, r.RejectReason, r.BudgetMonth, r.BudgetYear, r.StatusName,
+                    names.GetValueOrDefault(r.UserId, "—"), r.CreateDate, r.OrgUnitName, r.OrgUnitIsActive))
                 .ToList();
 
             return Result<List<ExpenseDTO>>.Success(list);
@@ -637,8 +655,12 @@ namespace SaaS.Microservices.CMS.Services
                     StatusName = e.Status.Name,
                     e.Amount,
                     e.Description,
+                    e.RejectReason,
+                    BudgetMonth = e.Budget.Month,
+                    BudgetYear = e.Budget.Year,
                     e.CreateDate,
-                    OrgUnitName = e.Budget.OrgUnit.Name
+                    OrgUnitName = e.Budget.OrgUnit.Name,
+                    OrgUnitIsActive = e.Budget.OrgUnit.IsActive
                 })
                 .FirstOrDefaultAsync();
 
@@ -655,8 +677,8 @@ namespace SaaS.Microservices.CMS.Services
 
             var expenseDto = new ExpenseDTO(
                 row.PublicId, row.UserId, row.BudgetPublicId, row.CategoryPublicId, row.StatusId,
-                row.CategoryName, row.Amount, row.Description, row.StatusName,
-                userName, row.CreateDate, row.OrgUnitName);
+                row.CategoryName, row.Amount, row.Description, row.RejectReason, row.BudgetMonth, row.BudgetYear, row.StatusName,
+                userName, row.CreateDate, row.OrgUnitName, row.OrgUnitIsActive);
 
             return Result<ExpenseDTO>.Success(expenseDto);
         }
@@ -716,6 +738,12 @@ namespace SaaS.Microservices.CMS.Services
             if (expense == null)
                 return Result<ExpenseDTO>.NotFound("Masraf bulunamadı");
 
+            if (expense.Budget == null)
+                return Result<ExpenseDTO>.NotFound("Bütçe bulunamadı");
+
+            if (!expense.Budget.OrgUnit.IsActive)
+                return Result<ExpenseDTO>.Fail("Pasif birime masraf eklenemez");
+
             var role = _currentUser.Role;
 
             var isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
@@ -763,10 +791,14 @@ namespace SaaS.Microservices.CMS.Services
                     category.Name,
                     expense.Amount,
                     expense.Description,
+                    expense.RejectReason,
+                    expense.Budget.Month,
+                    expense.Budget.Year,
                     STATUS_NAME_PENDING,
                     _currentUser.Name ?? "—",
                     expense.CreateDate,
-                    expense.Budget.OrgUnit.Name),
+                    expense.Budget.OrgUnit.Name,
+                    expense.Budget.OrgUnit.IsActive),
                 "Masraf güncellendi");
         }
     }

@@ -14,9 +14,13 @@ namespace SaaS.Microservices.CMS.DTOs.ExpenseDTOs
         string ExpenseCategoryName,
         decimal Amount,
         string? Description,
+        string? RejectReason,
+        int BudgetMonth,
+        int BudgetYear,
         string Status,
         string CreateUserName,
         DateTime CreateDate,
-        string OrgUnitName
+        string OrgUnitName,
+        bool OrgUnitIsActive
     );
 }

@@ -1,9 +1,10 @@
 @baseUrl = http://localhost:5012/api/OrgUnit
 # Tüm işlemler için 'cost-management' yetkisine sahip token gereklidir.
 # Atama (Assign) işlemleri için bu token sahibinin SuperAdmin VEYA ilgili birimin (veya üst biriminin) Manager'ı olması gerekir.
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI1N2I5NmEzNC00Y2FjLTRlYmYtOGI2Yy02MjY3MWE0OWIxNWUiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTQ1NjkxNiwiZXhwIjoxNzg5NTQ2OTE2LCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.B6HUUTjdATa2j-JLFcPPDVNlVkJWeh4JNSFiIQgOuqs
-
-# Şirkete ait tüm birimleri hiyerarşik sırayla listeler. Level bilgisi ağaç yapısını göstermek içindir.
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiJjYjRjN2YzNy05Nzc5LTQ4NGUtYjI0Yy1iNjY0M2JkODkxMTQiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTQ4MDQ5MywiZXhwIjoxNzg5NTcwNDkzLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.iRhfHEKQmbw8hqFLwW3MxR7whDgjRoeyNWL5D_uQksM
+# Şirkete ait tüm birimleri hiyerarşik sırayla listeler.
+# Level bilgisi ağaç yapısını göstermek, memberCount ise birimdeki
+# aktif kullanıcı sayısını göstermek içindir.
 GET {{baseUrl}}
 Authorization: Bearer {{accessToken}}
 
@@ -16,20 +17,23 @@ Authorization: Bearer {{accessToken}}
 #       "publicId": "123e4567-e89b-12d3-a456-426614174000",
 #       "name": "Genel Müdürlük",
 #       "level": 0,
-#       "isActive": true
+#       "isActive": true,
+#       "memberCount": 3
 #     },
 #     {
 #       "publicId": "333e4567-e89b-12d3-a456-426614174003",
 #       "name": "Yazılım Departmanı",
 #       "level": 1,
-#       "isActive": true
+#       "isActive": true,
+#       "memberCount": 0
 #     }
 #   ]
 # }
 
 
-### 2. Yeni Organizasyon Birimi (Departman) Oluştur (Create)
-# Sisteme yeni bir birim ekler. Üst birimi (Parent) yoksa parentPublicId için "00000000-0000-0000-0000-000000000000" gönderilebilir.
+### 2. Yeni Organizasyon Birimi Oluştur (Create)
+# Sisteme yeni bir birim ekler. Üst birimi (Parent) yoksa parentPublicId için
+# "00000000-0000-0000-0000-000000000000" gönderilebilir veya alan hiç gönderilmez.
 POST {{baseUrl}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -42,12 +46,13 @@ Content-Type: application/json
 # Beklenen Cevap (200 OK):
 # {
 #   "isSuccess": true,
-#   "message": "Departman oluşturuldu",
+#   "message": "Birim oluşturuldu",
 #   "data": {
 #     "publicId": "444e4567-e89b-12d3-a456-426614174004",
-#     "name": "Mobil Geliştirme Ekibi",
+#     "name": "Pazarlama",
 #     "level": 2,
-#     "isActive": true
+#     "isActive": true,
+#     "memberCount": 0
 #   }
 # }
 
@@ -119,19 +124,145 @@ Content-Type: application/json
 #   "message": "Bu işlemi yapamazsınız"
 # }
 
-###
-# 6. Tek birimi getir (Get By Id)
+
+### 6. Tek Birimi Getir (Get By Id)
 GET {{baseUrl}}/46ee27c2-3786-43a3-9e9d-29183646de71
 Authorization: Bearer {{accessToken}}
+
 # Beklenen Cevap (200 OK):
 # {
 #   "isSuccess": true,
 #   "message": "İşlem başarılı",
-#   "data": 
+#   "data": {
+#     "publicId": "123e4567-e89b-12d3-a456-426614174000",
+#     "name": "Genel Müdürlük",
+#     "level": 0,
+#     "isActive": true,
+#     "memberCount": 3
+#   }
+# }
+
+
+### 7. Birimdeki Üyeleri Getir (Get Members)
+# Birime atanmış aktif kullanıcıları, birimdeki rolleriyle birlikte listeler.
+# Kullanıcı adı ve e-posta Master DB'den ayrı sorguyla çekilip eşleştirilir.
+GET {{baseUrl}}/46ee27c2-3786-43a3-9e9d-29183646de71/members
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": [
 #     {
-#       "publicId": "123e4567-e89b-12d3-a456-426614174000",
-#       "name": "Genel Müdürlük",
-#       "level": 0,
-#       "isActive": true
+#       "userPublicId": "6d672f0a-2be1-4f7d-9b46-9b3d13dfd891",
+#       "userName": "Onur Owner",
+#       "email": "onur.demir.dev@outlook.com",
+#       "roleName": "Manager",
+#       "assignedAt": "2026-09-14T13:09:17.4569953Z"
 #     }
+#   ]
+# }
+
+# Olası Hata Senaryosu - Birim Bulunamadı (404 Not Found):
+# {
+#   "isSuccess": false,
+#   "message": "Birim bulunamadı"
+# }
+
+
+### 8. Birimi Güncelle (Update)
+# Birimin adını değiştirir. Hiyerarşideki yeri (parent) değiştirilemez —
+# bir birimi başka bir ebeveynin altına taşımak tüm alt ağacın path
+# değerlerinin yeniden hesaplanmasını gerektirir, kapsam dışıdır.
+# Not: SuperAdmin VEYA o birimin Manager'ı yapabilir.
+PUT {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "orgUnitPublicId": "46ee27c2-3786-43a3-9e9d-29183646de71",
+  "name": "Pazarlama ve İletişim"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Birim güncellendi",
+#   "data": {
+#     "publicId": "46ee27c2-3786-43a3-9e9d-29183646de71",
+#     "name": "Pazarlama ve İletişim",
+#     "level": 1,
+#     "isActive": true,
+#     "memberCount": 2
+#   }
+# }
+
+# Olası Hata Senaryosu - Yetkisiz İşlem (403 Forbidden):
+# {
+#   "isSuccess": false,
+#   "message": "Bu işlemi yapamazsınız"
+# }
+
+# Olası Hata Senaryosu - Boş Ad (400 Bad Request):
+# {
+#   "isSuccess": false,
+#   "message": "Birim adı boş olamaz"
+# }
+
+
+### 9. Birim Durumunu Değiştir (Toggle Active)
+# Aktif birimi pasifleştirir veya pasif birimi aktifleştirir.
+#
+# İki iş kuralı:
+#  - Pasifleştirme alt ağacı da kapsar. Aktif bir birim, pasif bir
+#    birimin altında duramaz.
+#  - Aktifleştirme üst birimin aktif olmasını gerektirir.
+#
+# Not: Yalnızca SuperAdmin yapabilir.
+POST {{baseUrl}}/toggle-active
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "orgUnitPublicId": "46ee27c2-3786-43a3-9e9d-29183646de71"
+}
+
+# Beklenen Cevap - Pasifleştirme, alt birimi olmayan (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Birim pasifleştirildi",
+#   "data": {
+#     "publicId": "46ee27c2-3786-43a3-9e9d-29183646de71",
+#     "name": "Pazarlama",
+#     "level": 1,
+#     "isActive": false,
+#     "memberCount": 0
+#   }
+# }
+
+# Beklenen Cevap - Pasifleştirme, alt birimleriyle (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Birim ve 3 alt birimi pasifleştirildi",
+#   "data": { ... }
+# }
+
+# Beklenen Cevap - Aktifleştirme (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Birim aktifleştirildi",
+#   "data": { ... }
+# }
+
+# Olası Hata Senaryosu - Üst Birim Pasif (409 Conflict):
+# {
+#   "isSuccess": false,
+#   "message": "Önce üst birim (Genel Müdürlük) aktifleştirilmeli"
+# }
+
+# Olası Hata Senaryosu - Yetkisiz İşlem (403 Forbidden):
+# {
+#   "isSuccess": false,
+#   "message": "Yalnızca organizasyon sahibi birim durumunu değiştirebilir"
 # }

@@ -29,6 +29,29 @@ namespace SaaS.Microservices.CMS.Controllers
             return listResult.ToActionResult();
         }
 
+        [HttpGet("{orgUnitPublicId:guid}/members")]
+        public async Task<IActionResult> GetMembers(Guid orgUnitPublicId)
+        {
+            var result = await _orgUnitService.GetMembersAsync(orgUnitPublicId);
+            return result.ToActionResult();
+        }
+
+        [HttpPut]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> Update([FromBody] UpdateOrgUnitDTO dto)
+        {
+            var result = await _orgUnitService.UpdateAsync(dto);
+            return result.ToActionResult();
+        }
+
+        [HttpPost("toggle-active")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<IActionResult> ToggleActive([FromBody] ToggleOrgUnitDTO dto)
+        {
+            var result = await _orgUnitService.ToggleActiveAsync(dto);
+            return result.ToActionResult();
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById([FromRoute] Guid id)
         {

@@ -22,5 +22,11 @@ namespace SaaS.Microservices.CMS.Interfaces
         Task<Result> AssignOrgUnitManagerAsync(AssignOrgUnitDTO dto);
         // [Endpoint] [✔]
         Task<Result> AssignOrgUnitApproverAsync(AssignOrgUnitDTO dto);
+        // [Endpoint] [✔]
+        Task<Result<List<OrgUnitMemberDTO>>> GetMembersAsync(Guid orgUnitPublicId);
+        // [Endpoint] [✔]
+        Task<Result<OrgUnitDTO>> UpdateAsync(UpdateOrgUnitDTO dto);
+        // [Endpoint] [✔]
+        Task<Result<OrgUnitDTO>> ToggleActiveAsync(ToggleOrgUnitDTO dto);
     }
 }

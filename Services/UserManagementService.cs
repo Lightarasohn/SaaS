@@ -16,13 +16,11 @@ namespace SaaS.Services
     public class UserManagementService : IUserManagementService
     {
         private readonly MasterContext _masterContext;
-        private readonly CMSContext _cmsContext;
         private readonly ICurrentUser _currentUser;
-        
-        public UserManagementService(MasterContext masterContext, CMSContext cmsContext, ICurrentUser currentUser)
+
+        public UserManagementService(MasterContext masterContext, ICurrentUser currentUser)
         {
             _masterContext = masterContext;
-            _cmsContext = cmsContext;
             _currentUser = currentUser;
         }
 
@@ -34,7 +32,7 @@ namespace SaaS.Services
 
             if (userId == null || companyId == null)
                 return Result.Unauthorized("Geçersiz Oturum");
-        
+
             if (userRole == null || userRole == RoleTypes.User.ToString())
                 return Result.Forbidden("Bu işlemi yapamazsınız");
 
@@ -56,9 +54,29 @@ namespace SaaS.Services
             if (role == null)
                 return Result.NotFound("Rol bulunamadı");
 
+            if (userRole != RoleTypes.SuperAdmin.ToString())
+                return Result.Forbidden("Yalnızca organizasyon sahibi rol değiştirebilir");
+
+            if (user.PublicId == userId)
+                return Result.Fail("Kendi rolünüzü değiştiremezsiniz");
+
+            // Son SuperAdmin'i düşürme
+            if (user.RoleId == (int)RoleTypes.SuperAdmin && dto.RoleId != (int)RoleTypes.SuperAdmin)
+            {
+                int superAdminCount = await _masterContext.AppUsers
+                    .CountAsync(u => u.CompanyId == company.Id
+                                  && u.RoleId == (int)RoleTypes.SuperAdmin
+                                  && !u.IsDeleted);
+
+                if (superAdminCount <= 1)
+                    return Result.Fail("Organizasyonda en az bir SuperAdmin kalmalı");
+            }
+
             user.RoleId = role.Id;
             user.UpdateUser = userId;
             user.UpdateDate = DateTime.UtcNow;
+
+            await _masterContext.SaveChangesAsync();
 
             return Result.Success("Kullanıcı rolü başarıyla değiştirildi");
         }
@@ -71,7 +89,7 @@ namespace SaaS.Services
 
             if (userId == null || companyId == null)
                 return Result<List<CompanyUserDTO>>.Unauthorized("Geçersiz Oturum");
-        
+
             if (role == null || role == RoleTypes.User.ToString())
                 return Result<List<CompanyUserDTO>>.Forbidden("Bu işlemi yapamazsınız");
 

@@ -5,11 +5,5 @@ using System.Threading.Tasks;
 
 namespace SaaS.Microservices.CMS.DTOs.OrgUnitDTOs
 {
-    public record OrgUnitDTO(
-        Guid PublicId,
-        string Name,
-        int Level,
-        bool IsActive,
-        int MemberCount
-    );
+    public record UpdateOrgUnitDTO(Guid OrgUnitPublicId, string Name);
 }

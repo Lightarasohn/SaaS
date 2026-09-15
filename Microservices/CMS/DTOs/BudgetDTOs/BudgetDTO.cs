@@ -9,6 +9,7 @@ namespace SaaS.Microservices.CMS.DTOs.BudgetDTOs
         Guid PublicId,
         Guid OrgUnitPublicId,
         string OrgUnitName,
+        bool OrgUnitIsActive,
         int Month,
         int Year,
         decimal TotalAmount,

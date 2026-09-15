@@ -2,7 +2,7 @@
 # İşlemleri yapacak kullanıcının 'cost-management' yetkisine sahip olması gerekir.
 # Onaylama/Reddetme/Güncelleme işlemleri için bu token'a sahip kullanıcının 
 # ilgili organizasyon biriminde Approver/Manager olması VEYA Admin/SuperAdmin rolünde olması gerekir.
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI1N2I5NmEzNC00Y2FjLTRlYmYtOGI2Yy02MjY3MWE0OWIxNWUiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTQ1NjkxNiwiZXhwIjoxNzg5NTQ2OTE2LCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.B6HUUTjdATa2j-JLFcPPDVNlVkJWeh4JNSFiIQgOuqs
 
 ### 1. Masrafları Getir (Get All)
 # Bütçeye, duruma göre filtreleme yapılabilir ve sadece kendi masraflarını (onlyMine=true) getirtebilirsin. 
@@ -16,12 +16,18 @@ Authorization: Bearer {{accessToken}}
 #   "message": "İşlem başarılı",
 #   "data": [
 #     {
-#       "publicId": "888e4567-e89b-12d3-a456-426614174001",
-#       "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-#       "expenseCategoryName": "Seyahat Giderleri",
-#       "amount": 1500.00,
-#       "status": "Beklemede",
-#       ...
+#       "publicId": "<guid>",
+#       "userPublicId": "<guid>",
+#       "BudgetPublicId": "<guid>",
+#       "expenseCategoryPublicId": "<guid>",
+#       "statusId": <int>
+#       "expenseCategoryName": "<string>",
+#       "amount": <decimal>,
+#       "description": "<string>" || null
+#       "status": "<string>",
+#       "createUserName": "<string>"
+#       "createDate": "<DateTime>",
+#       "orgUnitName": "<string>"
 #     }
 #   ]
 # }
@@ -46,7 +52,21 @@ Content-Type: application/json
 # {
 #   "isSuccess": true,
 #   "message": "Masraf eklendi",
-#   "data": { ... }
+#   "data": 
+#     {
+#       "publicId": "<guid>",
+#       "userPublicId": "<guid>",
+#       "BudgetPublicId": "<guid>",
+#       "expenseCategoryPublicId": "<guid>",
+#       "statusId": <int>
+#       "expenseCategoryName": "<string>",
+#       "amount": <decimal>,
+#       "description": "<string>" || null
+#       "status": "<string>",
+#       "createUserName": "<string>"
+#       "createDate": "<DateTime>",
+#       "orgUnitName": "<string>"
+#     }
 # }
 
 
@@ -76,7 +96,22 @@ Content-Type: application/json
 # {
 #   "isSuccess": true,
 #   "message": "2 masraf eklendi",
-#   "data": [ { ... }, { ... } ]
+#   "data": [ 
+#     {
+#       "publicId": "<guid>",
+#       "userPublicId": "<guid>",
+#       "BudgetPublicId": "<guid>",
+#       "expenseCategoryPublicId": "<guid>",
+#       "statusId": <int>
+#       "expenseCategoryName": "<string>",
+#       "amount": <decimal>,
+#       "description": "<string>" || null
+#       "status": "<string>",
+#       "createUserName": "<string>"
+#       "createDate": "<DateTime>",
+#       "orgUnitName": "<string>"
+#     },
+#   ]
 # }
 
 
@@ -170,3 +205,30 @@ Content-Type: application/json
   "amount": 1750.50,
   "description": "Ankara müşteri ziyareti uçak bileti (Fiyat güncellendi)"
 }
+
+### 10. Masrafı Getir (Get By Id)
+# Bütçeye, duruma göre filtreleme yapılabilir ve sadece kendi masraflarını (onlyMine=true) getirtebilirsin. 
+# Not: Eğer kullanıcı Admin/SuperAdmin değilse ve onlyMine=false ise, SADECE yetkili olduğu birimlerin masraflarını görebilir.
+GET {{baseUrl}}/20923e41-6460-4f70-a297-a8d82ab10d9d
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data":
+#     {
+#       "publicId": "<guid>",
+#       "userPublicId": "<guid>",
+#       "BudgetPublicId": "<guid>",
+#       "expenseCategoryPublicId": "<guid>",
+#       "statusId": <int>
+#       "expenseCategoryName": "<string>",
+#       "amount": <decimal>,
+#       "description": "<string>" || null
+#       "status": "<string>",
+#       "createUserName": "<string>"
+#       "createDate": "<DateTime>",
+#       "orgUnitName": "<string>"
+#     }
+# }

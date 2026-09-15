@@ -12,6 +12,7 @@ namespace SaaS.Microservices.CMS.Interfaces
     {
         // [Endpoint] [✔]
         Task<Result<List<ExpenseDTO>>> GetAllAsync(Guid? budgetPublicId, int? statusId, bool onlyMine);
+        Task<Result<ExpenseDTO>> GetByIdAsync(Guid expensePublicId);
         // [Endpoint] [✔]
         Task<Result<ExpenseDTO>> CreateAsync(CreateExpenseDTO dto);
         // [Endpoint] [✔]

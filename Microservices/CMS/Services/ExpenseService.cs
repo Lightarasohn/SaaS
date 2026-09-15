@@ -599,6 +599,68 @@ namespace SaaS.Microservices.CMS.Services
             return Result<List<ExpenseDTO>>.Success(list);
         }
 
+        public async Task<Result<ExpenseDTO>> GetByIdAsync(Guid expensePublicId)
+        {
+            var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
+
+            if (userId == null)
+                return Result<ExpenseDTO>.Unauthorized("Geçersiz oturum");
+
+            bool isCompanyAdmin = role == RoleTypes.Admin.ToString() || role == RoleTypes.SuperAdmin.ToString();
+
+            var query = _cmsContext.Expenses.AsNoTracking().AsQueryable();
+
+            // Sadece istenen masrafı filtrele
+            query = query.Where(e => e.PublicId == expensePublicId);
+
+            if (!isCompanyAdmin)
+            {
+                var scopedPaths = await _orgUnitAuthService.GetAuthorizedOrgUnitPathsAsync(
+                    userId.Value, OrgUnitRoleTypes.Manager, OrgUnitRoleTypes.Approver);
+
+                // Kullanıcı sadece kendi masrafını veya yönettiği/onayladığı birimlerin masraflarını görebilir
+                query = query.Where(e =>
+                    e.UserId == userId ||
+                    scopedPaths.Any(p => EF.Functions.Like(e.Budget.OrgUnit.Path, p + "%")));
+            }
+
+            var row = await query
+                .Select(e => new
+                {
+                    e.PublicId,
+                    e.UserId,
+                    BudgetPublicId = e.Budget.PublicId,
+                    CategoryPublicId = e.ExpenseCategory.PublicId,
+                    CategoryName = e.ExpenseCategory.Name,
+                    e.StatusId,
+                    StatusName = e.Status.Name,
+                    e.Amount,
+                    e.Description,
+                    e.CreateDate,
+                    OrgUnitName = e.Budget.OrgUnit.Name
+                })
+                .FirstOrDefaultAsync();
+
+            // Eğer kayıt yoksa veya kullanıcının yetkisi olmadığı için query'den dönmediyse
+            if (row == null)
+                return Result<ExpenseDTO>.NotFound("Masraf bulunamadı veya bu kaydı görüntüleme yetkiniz yok.");
+
+            // İlgili kullanıcının adını Master Context üzerinden çek
+            var userName = await _masterContext.AppUsers
+                .AsNoTracking()
+                .Where(u => u.PublicId == row.UserId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "—";
+
+            var expenseDto = new ExpenseDTO(
+                row.PublicId, row.UserId, row.BudgetPublicId, row.CategoryPublicId, row.StatusId,
+                row.CategoryName, row.Amount, row.Description, row.StatusName,
+                userName, row.CreateDate, row.OrgUnitName);
+
+            return Result<ExpenseDTO>.Success(expenseDto);
+        }
+
         public async Task<Result> RejectAsync(RejectExpenseDTO dto)
         {
             var userId = _currentUser.UserId;

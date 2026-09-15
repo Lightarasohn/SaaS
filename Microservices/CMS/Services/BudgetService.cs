@@ -235,5 +235,36 @@ namespace SaaS.Microservices.CMS.Services
                     budget.TotalAmount - budget.UsedAmount),
                 "Bütçe güncellendi");
         }
+
+        public async Task<Result<BudgetDTO>> GetByIdAsync(Guid budgetPublicId)
+        {
+            var companyId = _currentUser.CompanyId;
+            var userId = _currentUser.UserId;
+
+            if (companyId == null || userId == null)
+                return Result<BudgetDTO>.Unauthorized("Geçersiz oturum");
+            
+            var budget = await _context.Budgets
+                .AsNoTracking()
+                .Include(b => b.OrgUnit)
+                .FirstOrDefaultAsync(b =>
+                    b.PublicId == budgetPublicId &&
+                    b.IsDeleted == false
+                );
+
+            if (budget == null)
+                return Result<BudgetDTO>.NotFound("Bütçe bulunamadı");
+
+            return Result<BudgetDTO>.Success(new BudgetDTO(
+                budget.PublicId,
+                budget.OrgUnit.PublicId,
+                budget.OrgUnit.Name,
+                budget.Month,
+                budget.Year,
+                budget.TotalAmount,
+                budget.UsedAmount,
+                budget.TotalAmount - budget.UsedAmount
+            ));
+        }
     }
 }

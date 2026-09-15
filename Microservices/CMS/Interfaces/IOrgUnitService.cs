@@ -13,6 +13,8 @@ namespace SaaS.Microservices.CMS.Interfaces
         // [Endpoint] [✔]
         Task<Result<List<OrgUnitDTO>>> GetAllAsync();
         // [Endpoint] [✔]
+        Task<Result<OrgUnitDTO>> GetById(Guid orgUnitPublicId);
+        // [Endpoint] [✔]
         Task<Result<OrgUnitDTO>> CreateAsync(CreateOrgUnitDTO dto);
         // [Endpoint] [✔]
         Task<Result> AssignOrgUnitUserAsync(AssignOrgUnitDTO dto);

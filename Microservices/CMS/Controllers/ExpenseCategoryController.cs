@@ -26,6 +26,13 @@ namespace SaaS.Microservices.CMS.Controllers
             return result.ToActionResult();
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetAll([FromRoute] Guid id)
+        {
+            var result = await _expenseCategoryService.GetByIdAsync(id);
+            return result.ToActionResult();
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateExpenseCategoryDTO dto)
         {

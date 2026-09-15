@@ -14,6 +14,8 @@ namespace SaaS.Microservices.CMS.Interfaces
         // [Endpoint] [✔]
         Task<Result<List<ExpenseCategoryDTO>>> GetAllAsync();
         // [Endpoint] [✔]
+        Task<Result<ExpenseCategoryDTO>> GetByIdAsync(Guid expenseCategoryPublicId);
+        // [Endpoint] [✔]
         Task<Result<ExpenseCategoryDTO>> UpdateAsync(UpdateExpenseCategoryDTO dto);
     }
 }

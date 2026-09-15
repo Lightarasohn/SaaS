@@ -17,5 +17,7 @@ namespace SaaS.Microservices.CMS.Interfaces
         Task<Result<BudgetDTO>> UpdateBudgetAsync(UpdateBudgetDTO dto);
         // [Endpoint] [✔]
         Task<Result> CanUpdateBudgetAsync(CanUpdateBudgetDTO dto);
+        // [Endpoint] [✔]
+        Task<Result<BudgetDTO>> GetByIdAsync(Guid budgetPublicId);
     }
 }

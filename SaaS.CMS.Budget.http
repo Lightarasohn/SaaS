@@ -2,7 +2,7 @@
 # Tüm işlemler için 'cost-management' yetkisine sahip token gereklidir.
 # Oluşturma ve Güncelleme işlemleri için bu token'ın sahibinin, ilgili birimin Manager'ı 
 # veya sistem genelinde Admin/SuperAdmin rolüne sahip olması gerekir.
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI5NzlkZWM4My04Y2Y2LTRiMjItYjNhMi1hNDcwN2ZiMWQ3ODIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTM4MDAzMCwiZXhwIjoxNzg5Mzk4MDMwLCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.ptrVxRY0kjqQwaVxKvu7dZVGQzsX1E5iqtVqljhG06A
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZDY3MmYwYS0yYmUxLTRmN2QtOWI0Ni05YjNkMTNkZmQ4OTEiLCJlbWFpbCI6Im9udXIuZGVtaXIuZGV2QG91dGxvb2suY29tIiwiZ2l2ZW5fbmFtZSI6Ik9udXIgT3duZXIiLCJqdGkiOiI1N2I5NmEzNC00Y2FjLTRlYmYtOGI2Yy02MjY3MWE0OWIxNWUiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJTdXBlckFkbWluIiwiY29tcGFueV9pZCI6ImM1M2U4MjBiLWUwNTYtNDE1Yi04NmI1LWEzYmNlMDVjNzI0MyIsIm5iZiI6MTc4OTQ1NjkxNiwiZXhwIjoxNzg5NTQ2OTE2LCJpc3MiOiJTYWFTLkFwaSIsImF1ZCI6IlNhYVMuQ2xpZW50In0.B6HUUTjdATa2j-JLFcPPDVNlVkJWeh4JNSFiIQgOuqs
 
 ### 1. Bütçeleri Getir (Get All)
 # Bütçeleri yıla, aya veya birime göre filtreleyebilirsin. Tüm parametreler opsiyoneldir.
@@ -128,4 +128,26 @@ Content-Type: application/json
 #     "usedAmount": 15000.00,
 #     "remainingAmount": 65000.00
 #   }
+# }
+
+### 5. Bütçeleri Getir (Get All)
+# Bütçeleri yıla, aya veya birime göre filtreleyebilirsin. Tüm parametreler opsiyoneldir.
+# Not: Sadece yetkili olunan veya tüm şirketin (admin ise) bütçeleri listelenir (Service tarafında ileride eklenebilecek filtrelemelere göre).
+GET {{baseUrl}}/c4a63b32-267c-495e-a121-0d18928e0d1f
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "İşlem başarılı",
+#   "data": {
+#       "publicId": "777e4567-e89b-12d3-a456-426614174000",
+#       "orgUnitPublicId": "123e4567-e89b-12d3-a456-426614174000",
+#       "orgUnitName": "Yazılım Departmanı",
+#       "month": 9,
+#       "year": 2026,
+#       "totalAmount": 50000.00,
+#       "usedAmount": 15000.00,
+#       "remainingAmount": 35000.00
+#     }
 # }

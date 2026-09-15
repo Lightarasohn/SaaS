@@ -30,6 +30,12 @@ namespace SaaS.Microservices.CMS.Services
 
         public async Task<Result<List<ExpenseCategoryDTO>>> GetAllAsync()
         {
+            var companyId = _currentUser.CompanyId;
+            var userId = _currentUser.UserId; 
+
+            if (companyId == null || userId == null)
+                return Result<List<ExpenseCategoryDTO>>.Unauthorized("Geçersiz oturum");
+
             var list = await _context.ExpenseCategories
                 .AsNoTracking()
                 .OrderBy(ec => ec.Name)
@@ -122,6 +128,28 @@ namespace SaaS.Microservices.CMS.Services
                     category.Name,
                     category.IsActive),
                 "Kategori güncellendi");
+        }
+
+        public async Task<Result<ExpenseCategoryDTO>> GetByIdAsync(Guid expenseCategoryPublicId)
+        {
+            var companyId = _currentUser.CompanyId;
+            var userId = _currentUser.UserId; 
+
+            if (companyId == null || userId == null)
+                return Result<ExpenseCategoryDTO>.Unauthorized("Geçersiz oturum");
+
+            var expenseCategory = await _context.ExpenseCategories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ec => ec.PublicId == expenseCategoryPublicId);
+
+            if (expenseCategory == null)
+                return Result<ExpenseCategoryDTO>.NotFound("Masraf kategorisi bulunamadı");
+
+            return Result<ExpenseCategoryDTO>.Success(new ExpenseCategoryDTO(
+                expenseCategory.PublicId,
+                expenseCategory.Name,
+                expenseCategory.IsActive
+            ));
         }
     }
 }

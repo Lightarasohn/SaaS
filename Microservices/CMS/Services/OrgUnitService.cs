@@ -183,7 +183,7 @@ namespace SaaS.Microservices.CMS.Services
                 return Result<OrgUnitDTO>.Success(new OrgUnitDTO(
                     orgUnit.PublicId,
                     orgUnit.Name,
-                    orgUnit.Path.Count(c => c == '/') - 2,
+                    CalculateLevel(orgUnit.Path),
                     orgUnit.IsActive), "Departman oluşturuldu");
             }
             catch (Exception ex)
@@ -197,6 +197,12 @@ namespace SaaS.Microservices.CMS.Services
 
         public async Task<Result<List<OrgUnitDTO>>> GetAllAsync()
         {
+            var companyId = _currentUser.CompanyId;
+            var userId = _currentUser.UserId;
+
+            if (companyId == null || userId == null)
+                return Result<List<OrgUnitDTO>>.Unauthorized("Geçersiz oturum");
+
             var rows = await _cmsContext.OrgUnits
                 .AsNoTracking()
                 .OrderBy(d => d.Path)
@@ -207,11 +213,39 @@ namespace SaaS.Microservices.CMS.Services
                 .Select(d => new OrgUnitDTO(
                     d.PublicId,
                     d.Name,
-                    d.Path.Count(c => c == '/') - 2,
+                    CalculateLevel(d.Path),
                     d.IsActive))
                 .ToList();
 
             return Result<List<OrgUnitDTO>>.Success(list);
+        }
+
+        public async Task<Result<OrgUnitDTO>> GetById(Guid orgUnitPublicId)
+        {
+            var companyId = _currentUser.CompanyId;
+            var userId = _currentUser.UserId;
+
+            if (companyId == null || userId == null)
+                return Result<OrgUnitDTO>.Unauthorized("Geçersiz oturum");
+            
+            var orgUnit = await _cmsContext.OrgUnits
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.PublicId == orgUnitPublicId);
+
+            if (orgUnit == null)
+                return Result<OrgUnitDTO>.NotFound("Birim bulunamadı");
+
+            return Result<OrgUnitDTO>.Success(new OrgUnitDTO(
+                orgUnit.PublicId,
+                orgUnit.Name,
+                CalculateLevel(orgUnit.Path),
+                orgUnit.IsActive
+            ));
+        }
+
+        private int CalculateLevel(string path)
+        {
+            return path.Count(c => c == '/') - 2;
         }
     }
 }

@@ -91,6 +91,7 @@ CREATE TABLE user_token (
     token_hash CHAR(64) NOT NULL, -- SHA-256 hex: her zaman tam 64 karakter
     token_type VARCHAR(50) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
+    payload nvarchar(200) NULL,
     used BOOLEAN NOT NULL DEFAULT FALSE,
     create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_user_token PRIMARY KEY (id),

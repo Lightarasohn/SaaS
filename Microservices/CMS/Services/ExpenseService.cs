@@ -742,7 +742,7 @@ namespace SaaS.Microservices.CMS.Services
                 return Result<ExpenseDTO>.NotFound("Bütçe bulunamadı");
 
             if (!expense.Budget.OrgUnit.IsActive)
-                return Result<ExpenseDTO>.Fail("Pasif birime masraf eklenemez");
+                return Result<ExpenseDTO>.Fail("Pasif birimin masrafı düzenlenemez");
 
             var role = _currentUser.Role;
 

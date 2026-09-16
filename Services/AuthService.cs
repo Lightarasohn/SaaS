@@ -20,6 +20,7 @@ namespace SaaS.Services
 
         private const string TOKEN_TYPE_ACTIVATION = "Hesap Aktivasyonu";
         private const string TOKEN_TYPE_CHANGE_PASSWORD = "Parola Yenile";
+        private const string TOKEN_TYPE_CHANGE_EMAIL = "E-posta Değişikliği";
         private const int PLAN_ID_FREE = 1;
         private const int PASSWORD_CHANGE_COOLDOWN_DAYS = 7;
         private readonly string _frontendBaseUrl;
@@ -362,6 +363,104 @@ namespace SaaS.Services
             return Result.Success("Parola yenilenebilir");
         }
 
+        public async Task<Result> ForgotEmail(ForgotEmailDTO forgotEmailDTO)
+        {
+            _logger.LogDebug("E-posta değiştirme isteği alındı");
+
+            string secretKeyHash = RecoveryKeyService.Hash(forgotEmailDTO.SecretKey);
+
+            AppUser? user = await _context.AppUsers
+                .FirstOrDefaultAsync(u => u.RecoveryKeyHash == secretKeyHash);
+
+            if (user == null)
+                return Result.Fail("Geçersiz kurtarma anahtarı");
+
+            string newRawRecoveryKey = RecoveryKeyService.GenerateRecoveryKey();
+            string newHashedRecoveryKey = RecoveryKeyService.Hash(newRawRecoveryKey);
+
+            // Anahtar rotasyonu + token oluşturma + mail kuyruğa alma tek transaction'da:
+            // herhangi biri başarısız olursa eski anahtar geçerliliğini korur, kullanıcı kilitlenmez.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                user.RecoveryKeyHash = newHashedRecoveryKey;
+                await _context.SaveChangesAsync();
+
+                // Ham yeni anahtar sadece bu token satırında (Payload), DB'de duruyor —
+                // e-postaya basılmıyor, ayrı bir cache/store gerekmiyor.
+                string changeEmailToken = await CreateUserTokenAsync(
+                    user.Id, TOKEN_TYPE_CHANGE_EMAIL, TimeSpan.FromMinutes(30), newRawRecoveryKey);
+
+                using var emailCTS = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await _emailQueue.EnqueueAsync(new EmailJob(
+                    user.Email,
+                    AuthEmailTemplates.ChangeEmailSubject,
+                    AuthEmailTemplates.ChangeEmailBody(_frontendBaseUrl, changeEmailToken),
+                    true), emailCTS.Token);
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "E-posta değiştirme isteği başarısız, rollback yapıldı. UserId={UserId}", user.Id);
+                return Result.Fail("İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.", ResultStatus.Error);
+            }
+
+            _logger.LogInformation("E-posta değiştirme isteği işlendi, kurtarma anahtarı yenilendi. UserId={UserId}", user.Id);
+            return Result.Success("Onay linki kayıtlı e-posta adresinize gönderilmiştir.");
+        }
+
+        public async Task<Result<ValidateChangeEmailResultDTO>> ValidateChangeEmail(string rawToken)
+        {
+            _logger.LogDebug("E-posta değiştirme doğrulaması isteği alındı");
+            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_CHANGE_EMAIL);
+
+            if (token == null)
+                return Result<ValidateChangeEmailResultDTO>.Fail("E-posta değiştirme linki geçersiz veya süresi dolmuş");
+
+            _logger.LogDebug("E-posta değiştirme doğrulaması başarılı. UserId={UserId}", token.UserId);
+            return Result<ValidateChangeEmailResultDTO>.Success(new ValidateChangeEmailResultDTO(token.Payload));
+        }
+
+        public async Task<Result> ChangeEmail(string rawToken, ChangeEmailDTO newEmailDTO)
+        {
+            _logger.LogDebug("E-posta değiştirme onayı isteği alındı");
+            UserToken? token = await GetValidTokenAsync(rawToken, TOKEN_TYPE_CHANGE_EMAIL);
+
+            if (token == null)
+                return Result.Fail("E-posta değiştirme linki geçersiz veya süresi dolmuş");
+
+            if (string.Equals(token.User.Email, newEmailDTO.Email, StringComparison.OrdinalIgnoreCase))
+                return Result.Fail("Yeni e-posta eski e-posta ile aynı olamaz");
+
+            bool emailTaken = await _context.AppUsers
+                .AnyAsync(u => u.Email == newEmailDTO.Email && u.Id != token.UserId);
+
+            if (emailTaken)
+                return Result.Conflict("Bu e-posta kullanılamaz");
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                token.User.Email = newEmailDTO.Email;
+                token.User.UpdateDate = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                await InvalidateActiveTokensAsync(token.UserId, TOKEN_TYPE_CHANGE_EMAIL);
+                await RevokeAllUserTokensAsync(token.UserId); // e-posta login kimliği olduğundan tüm oturumlar sonlandırılır
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "E-posta değiştirilemedi, rollback yapıldı. UserId={UserId}", token.UserId);
+                return Result.Fail("E-posta değiştirilirken sistemsel bir hata oluştu.", ResultStatus.Error);
+            }
+            _logger.LogInformation("E-posta başarıyla değiştirildi. UserId={UserId}", token.UserId);
+            return Result.Success("E-posta adresiniz değiştirilmiştir");
+        }
+
         public async Task<Result<TokenPair>> RefreshAsync(string rawRefreshToken, string? ip, string? userAgent)
         {
             _logger.LogDebug("Oturum yenileme isteği alındı");
@@ -532,7 +631,7 @@ namespace SaaS.Services
             return token;
         }
 
-        private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime)
+        private async Task<string> CreateUserTokenAsync(int userId, string tokenType, TimeSpan lifeTime, string? payload = null)
         {
             await InvalidateActiveTokensAsync(userId, tokenType);
 
@@ -545,6 +644,7 @@ namespace SaaS.Services
                 TokenType = tokenType,
                 ExpiresAt = DateTime.UtcNow.Add(lifeTime),
                 Used = false,
+                Payload = payload,
                 CreateDate = DateTime.UtcNow
             };
 
@@ -558,6 +658,45 @@ namespace SaaS.Services
             await _context.UserTokens
                                 .Where(ut => ut.UserId == userId && ut.TokenType == tokenType && !ut.Used)
                                 .ExecuteUpdateAsync(s => s.SetProperty(ut => ut.Used, true));
+        }
+
+        public async Task<Result> ValidateChangePasswordDirectly(Guid userPublicId)
+        {
+            _logger.LogDebug("Parola yenileme doğrulaması isteği alındı");
+
+            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.PublicId == userPublicId);
+
+            if (user == null)
+                return Result.NotFound("Kullanıcı bulunamadı");
+
+            if (IsInPasswordCooldown(user))
+                return Result.Conflict("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
+
+            _logger.LogDebug("Parola yenileme doğrulaması başarılı. UserId={UserId}", user.Id);
+            return Result.Success("Parola yenilenebilir");
+        }
+
+        public async Task<Result> ChangePasswordDirectly(Guid userPublicId, ChangePasswordDirectlyDTO changePasswordDirectlyDTO)
+        {
+            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.PublicId == userPublicId);
+
+            if (user == null)
+                return Result.NotFound("Kullanıcı bulunamadı");
+
+            if (IsInPasswordCooldown(user))
+                return Result.Conflict("Parolanızı kısa bir süre önce yenilediğinizden dolayı yenileyemezsiniz");
+
+            if (!BCrypt.Net.BCrypt.Verify(changePasswordDirectlyDTO.OldPassword, user.PasswordHash))
+                return Result.Fail("Eski parola yanlış");
+
+            if (BCrypt.Net.BCrypt.Verify(changePasswordDirectlyDTO.NewPassword, user.PasswordHash))
+                return Result.Fail("Yeni parola eski parola ile aynı olamaz");
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(changePasswordDirectlyDTO.NewPassword);
+            user.PasswordChangedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Parola başarıyla yenilendi. UserId={UserId}", user.Id);
+            return Result.Success("Parolanız yenilenmiştir");
         }
     }
 

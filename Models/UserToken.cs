@@ -19,5 +19,7 @@ public partial class UserToken
 
     public DateTime CreateDate { get; set; }
 
+    public string? Payload { get; set; }
+
     public virtual AppUser User { get; set; } = null!;
 }

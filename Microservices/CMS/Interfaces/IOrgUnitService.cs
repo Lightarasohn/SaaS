@@ -28,5 +28,7 @@ namespace SaaS.Microservices.CMS.Interfaces
         Task<Result<OrgUnitDTO>> UpdateAsync(UpdateOrgUnitDTO dto);
         // [Endpoint] [✔]
         Task<Result<OrgUnitDTO>> ToggleActiveAsync(ToggleOrgUnitDTO dto);
+        // [Endpoint] [✔]
+        Task<Result> DeleteAsync(Guid orgUnitPublicId);
     }
 }

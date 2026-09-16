@@ -183,3 +183,63 @@ Authorization: Bearer {{accessToken}}
 #     "orgUnitId": 0
 #   }
 # }
+
+
+### 12. E-postamı Unuttum / E-posta Değiştirme Talebi (Forgot Email)
+POST {{baseUrl}}/forgot-email
+Content-Type: application/json
+
+{
+  "secretKey": "raw-recovery-key-string-degeri"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "E-posta yenileme talebiniz alınmıştır."
+# }
+
+
+### 13. E-posta Değiştirme Token Doğrulaması (Validate Change Email)
+GET {{baseUrl}}/validate-change-email?token=eposta_degistirme_token_degeri
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "E-posta adresi değiştirilebilir",
+#   "data": {
+#     "newRecoveryKey": "yeni-raw-recovery-key-string-degeri"
+#   }
+# }
+
+
+### 14. E-posta Değiştir (Change Email)
+POST {{baseUrl}}/change-email?token=eposta_degistirme_token_degeri
+Content-Type: application/json
+
+{
+  "email": "yeni.eposta@techsolutions.com"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "E-posta adresiniz başarıyla güncellenmiştir"
+# }
+
+
+### 15. Doğrudan Parola Değiştir (Change Password Directly) - Yetki Gerektirir (Authorize)
+POST {{baseUrl}}/change-password-directly
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "oldPassword": "Superguclusifre123.",
+  "newPassword": "NewStrongPassword456!"
+}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": "Parolanız başarıyla değiştirilmiştir."
+# }

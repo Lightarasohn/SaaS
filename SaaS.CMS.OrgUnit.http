@@ -39,8 +39,8 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "parentPublicId": "46ee27c2-3786-43a3-9e9d-29183646de71",
-  "name": "Pazarlama"
+  "parentPublicId": null,
+  "name": "DenemeSilme"
 }
 
 # Beklenen Cevap (200 OK):
@@ -65,8 +65,8 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "userPublicId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "orgUnitPublicId": "444e4567-e89b-12d3-a456-426614174004"
+  "userPublicId": "262b0f10-c399-4afb-8bb5-504dfa0f6c1b",
+  "orgUnitPublicId": "08da461f-ba84-4ae5-9ce3-3aa2475bebbc"
 }
 
 # Beklenen Cevap (200 OK):
@@ -266,3 +266,24 @@ Content-Type: application/json
 #   "isSuccess": false,
 #   "message": "Yalnızca organizasyon sahibi birim durumunu değiştirebilir"
 # }
+
+### 10. Birimi Sil (Delete)
+# Kalıcı siler. Yanlış oluşturulmuş birimleri temizlemek içindir.
+#
+# Engeller:
+#  - Alt birimi varsa silinmez
+#  - Bütçe kaydı varsa silinmez (pasifleştirme önerilir)
+#
+# Üye atamaları birimle birlikte silinir.
+# Not: Yalnızca SuperAdmin yapabilir.
+DELETE {{baseUrl}}/23fc625c-e299-47a5-93cc-07f986b24f18
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# { "isSuccess": true, "message": "Birim silindi" }
+
+# Olası Hata - Alt Birim Var (409 Conflict):
+# { "isSuccess": false, "message": "Bu birimin alt birimleri var. Önce onları silin." }
+
+# Olası Hata - Bütçe Var (409 Conflict):
+# { "isSuccess": false, "message": "Bu birime ait bütçe kayıtları var. Silmek yerine pasifleştirebilirsiniz." }

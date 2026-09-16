@@ -9,6 +9,7 @@ namespace SaaS.Emails
     {
         public static string ForgotPasswordSubject {get; } = "Parola Yenileme";
         public static string VerifyAccountSubject {get; }= "Hesap Aktivasyonu";
+        public static string ChangeEmailSubject => "E-posta Adresi Değişikliği";
         // TODO: FRONTEND HESABI AKTIİFLEŞTİR SAYFASI OLMALI
         public static string VerifyAccountBody(string baseUrl, string activationToken)
         {
@@ -35,5 +36,8 @@ namespace SaaS.Emails
                     </div>
                     """;
         }
+
+        public static string ChangeEmailBody(string frontendBaseUrl, string token)
+    => $"E-posta adresinizi değiştirmek için linke tıklayın: {frontendBaseUrl}/change-email?token={token}";
     }
 }

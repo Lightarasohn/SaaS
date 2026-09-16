@@ -82,5 +82,15 @@ namespace SaaS.Validations
                     .Matches("[0-9]").WithMessage("Parola en az bir rakam içermelidir.");
             }
         }
+
+        public class ChangeEmailValidator : AbstractValidator<ChangeEmailDTO>
+        {
+            public ChangeEmailValidator()
+            {
+                RuleFor(r => r.Email)
+                    .NotEmpty().WithMessage("E-posta boş bırakılamaz")
+                    .EmailAddress().WithMessage("Geçerli bir e-posta adresi giriniz");
+            }
+        }
     }
 }

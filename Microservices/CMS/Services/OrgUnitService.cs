@@ -197,6 +197,68 @@ namespace SaaS.Microservices.CMS.Services
             }
         }
 
+        public async Task<Result> DeleteAsync(Guid orgUnitPublicId)
+        {
+            var userId = _currentUser.UserId;
+            var role = _currentUser.Role;
+
+            if (userId == null)
+                return Result.Unauthorized("Geçersiz oturum");
+
+            if (role != RoleTypes.SuperAdmin.ToString())
+                return Result.Forbidden("Yalnızca organizasyon sahibi birim silebilir");
+
+            var orgUnit = await _cmsContext.OrgUnits
+                .FirstOrDefaultAsync(o => o.PublicId == orgUnitPublicId);
+
+            if (orgUnit == null)
+                return Result.NotFound("Birim bulunamadı");
+
+            // Alt birimi varsa önce onlar silinmeli
+            bool hasChildren = await _cmsContext.OrgUnits
+                .AnyAsync(o => o.ParentId == orgUnit.Id);
+
+            if (hasChildren)
+                return Result.Conflict("Bu birimin alt birimleri var. Önce onları silin.");
+
+            // Bütçesi varsa mali geçmiş var, silinemez.
+            // IgnoreQueryFilters: silinmiş bütçeler de engel — onlara bağlı
+            // masraf kayıtları duruyor olabilir.
+            bool hasBudget = await _cmsContext.Budgets
+                .IgnoreQueryFilters()
+                .AnyAsync(b => b.OrgUnitId == orgUnit.Id);
+
+            if (hasBudget)
+                return Result.Conflict(
+                    "Bu birime ait bütçe kayıtları var. Silmek yerine pasifleştirebilirsiniz.");
+
+            await using var transaction = await _cmsContext.Database.BeginTransactionAsync();
+            try
+            {
+                // Üye atamaları birimle birlikte gider — birim yoksa atama anlamsız
+                int removedRoles = await _cmsContext.OrgUnitUserRoles
+                    .Where(r => r.OrgUnitId == orgUnit.Id)
+                    .ExecuteDeleteAsync();
+
+                _cmsContext.OrgUnits.Remove(orgUnit);
+                await _cmsContext.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Birim silindi. Id={Id}, Ad={Name}, SilinenAtama={RoleCount}, UserId={UserId}",
+                    orgUnit.Id, orgUnit.Name, removedRoles, userId);
+
+                return Result.Success("Birim silindi");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Birim silinemedi. Id={Id}", orgUnit.Id);
+                return Result.Fail("Birim silinirken bir hata oluştu", ResultStatus.Error);
+            }
+        }
+
         public async Task<Result<OrgUnitDTO>> UpdateAsync(UpdateOrgUnitDTO dto)
         {
             var userId = _currentUser.UserId;

@@ -66,6 +66,14 @@ namespace SaaS.Microservices.CMS.Controllers
             return result.ToActionResult();
         }
 
+        [HttpDelete("{orgUnitPublicId:guid}")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<IActionResult> Delete(Guid orgUnitPublicId)
+        {
+            var result = await _orgUnitService.DeleteAsync(orgUnitPublicId);
+            return result.ToActionResult();
+        }
+
         [HttpPost]
         [Route("assign/user")]
         public async Task<IActionResult> AssignUser(AssignOrgUnitDTO assignOrgUnitDTO)

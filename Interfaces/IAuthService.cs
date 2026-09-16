@@ -32,5 +32,15 @@ namespace SaaS.Interfaces
         public Task RevokeRefreshTokenAsync(string rawRefreshToken);
         // [Endpoint] [✔]
         public Task<Result<MeDTO>> GetMe(string publicId);
+        // [Endpoint] [✔]
+        public Task<Result> ForgotEmail(ForgotEmailDTO forgotEmailDTO);
+        // [Endpoint] [✔]
+        public Task<Result<ValidateChangeEmailResultDTO>> ValidateChangeEmail(string rawToken);
+        // [Endpoint] [✔]
+        public Task<Result> ChangeEmail(string rawToken, ChangeEmailDTO newEmailDTO);
+        // [Endpoint] [✔]
+        public Task<Result> ValidateChangePasswordDirectly(Guid userPublicId);
+        // [Endpoint] [✔]
+        public Task<Result> ChangePasswordDirectly(Guid userPublicId, ChangePasswordDirectlyDTO changePasswordDirectlyDTO);
     }
 }

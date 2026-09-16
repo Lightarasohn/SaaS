@@ -78,12 +78,28 @@ namespace SaaS.Controllers
         }
 
         [HttpPost]
+        [Route("forgot-email")]
+        public async Task<IActionResult> ForgotEmail([FromBody] ForgotEmailDTO forgotEmailDTO)
+        {
+            var forgotEmailResult = await _authService.ForgotEmail(forgotEmailDTO);
+            return forgotEmailResult.ToActionResult();
+        }
+
+        [HttpPost]
         [Route("change-password")]
         public async Task<IActionResult> ChangePassword([FromQuery] string token, [FromBody] ChangePasswordDTO changePasswordDTO)
         {
             var changePasswordResult = await _authService.ChangePassword(token, changePasswordDTO);
             return changePasswordResult.ToActionResult();
 
+        }
+
+        [HttpPost]
+        [Route("change-email")]
+        public async Task<IActionResult> ChangeEmail([FromQuery] string token, [FromBody] ChangeEmailDTO changeEmailDTO)
+        {
+            var changeEmailResult = await _authService.ChangeEmail(token, changeEmailDTO);
+            return changeEmailResult.ToActionResult();
         }
 
         [HttpGet]
@@ -93,6 +109,14 @@ namespace SaaS.Controllers
             var validateChangePasswordResult = await _authService.ValidateChangePassword(token);
             return validateChangePasswordResult.ToActionResult();
 
+        }
+
+        [HttpGet]
+        [Route("validate-change-email")]
+        public async Task<IActionResult> ValidateChangeEmail([FromQuery] string token)
+        {
+            var validateChangeEmailResult = await _authService.ValidateChangeEmail(token);
+            return validateChangeEmailResult.ToActionResult();
         }
 
         [HttpGet]
@@ -144,6 +168,34 @@ namespace SaaS.Controllers
 
             return getMeResult.ToActionResult();
 
+        }
+
+        [HttpPost]
+        [Route("change-password-directly")]
+        [Authorize]
+        public async Task<IActionResult> ChangePasswordDirectly([FromBody] ChangePasswordDirectlyDTO changePasswordDirectlyDTO)
+        {
+             if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out Guid publicId))
+             {
+                 return Result.Unauthorized("Geçersiz Oturum").ToActionResult();
+             }
+
+             var changedPasswordResult = await _authService.ChangePasswordDirectly(publicId, changePasswordDirectlyDTO);
+             return changedPasswordResult.ToActionResult();
+        }
+
+        [HttpGet]
+        [Route("validate-change-password-directly")]
+        [Authorize]
+        public async Task<IActionResult> ValidateChangePasswordDirectly()
+        {
+            if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out Guid publicId))
+             {
+                 return Result.Unauthorized("Geçersiz Oturum").ToActionResult();
+             }
+
+             var changedPasswordResult = await _authService.ValidateChangePasswordDirectly(publicId);
+             return changedPasswordResult.ToActionResult();
         }
 
         private string? GetIp()

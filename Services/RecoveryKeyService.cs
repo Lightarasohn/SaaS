@@ -6,8 +6,9 @@ namespace SaaS.Services
 {
     public static class RecoveryKeyService
     {
-        private const string PREFIX = "SaaS";
-        private const int ENTROPY_BYTES = 15;   // 120 bit -> tam 24 karakter, padding yok
+        private const string KEY_PREFIX = "SaaS";
+        private const string HASH_PREFIX = "SaaSH1";   // H1 = hash algoritması v1, ileride değişirse ayırt edilir
+        private const int ENTROPY_BYTES = 15;           // ham anahtar: 120 bit -> 24 karakter
         private const int GROUP_SIZE = 4;
 
         // Crockford Base32: I, L, O, U yok (okuma/yazma hatalarını önler)
@@ -17,26 +18,36 @@ namespace SaaS.Services
         public static string GenerateRecoveryKey()
         {
             byte[] randomBytes = RandomNumberGenerator.GetBytes(ENTROPY_BYTES);
-            string encoded = ToBase32(randomBytes);
-
-            StringBuilder sb = new StringBuilder(PREFIX);
-            for (int i = 0; i < encoded.Length; i += GROUP_SIZE)
-            {
-                sb.Append('-').Append(encoded, i, GROUP_SIZE);
-            }
-
-            return sb.ToString();
+            return Format(KEY_PREFIX, ToBase32(randomBytes));
         }
 
+        /// <summary>DB'de saklanan hash: SaaSH1-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX</summary>
         public static string Hash(string recoveryKey)
-            => BCrypt.Net.BCrypt.HashPassword(Normalize(recoveryKey));
+        {
+            byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(Normalize(recoveryKey)));
+            return Format(HASH_PREFIX, ToBase32(hashBytes)); // 256 bit -> 52 karakter
+        }
 
         public static bool Verify(string? userInput, string storedHash)
         {
             string normalized = Normalize(userInput);
             if (normalized.Length == 0) return false;
 
-            return BCrypt.Net.BCrypt.Verify(normalized, storedHash);
+            string computedHash = Hash(normalized);
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(computedHash),
+                Encoding.UTF8.GetBytes(storedHash));
+        }
+
+        private static string Format(string prefix, string base32Body)
+        {
+            StringBuilder sb = new StringBuilder(prefix);
+            for (int i = 0; i < base32Body.Length; i += GROUP_SIZE)
+            {
+                int len = Math.Min(GROUP_SIZE, base32Body.Length - i);
+                sb.Append('-').Append(base32Body, i, len);
+            }
+            return sb.ToString();
         }
 
         /// <summary>
@@ -49,9 +60,8 @@ namespace SaaS.Services
 
             string s = input.Trim().ToUpperInvariant();
 
-            // Prefix'teki harfler alfabede de var, önce açıkça temizle
-            if (s.StartsWith(PREFIX.ToUpperInvariant(), StringComparison.Ordinal))
-                s = s.Substring(PREFIX.Length);
+            if (s.StartsWith(KEY_PREFIX.ToUpperInvariant(), StringComparison.Ordinal))
+                s = s.Substring(KEY_PREFIX.Length);
 
             StringBuilder sb = new StringBuilder(s.Length);
             foreach (char c in s)
@@ -61,10 +71,11 @@ namespace SaaS.Services
                     'O' => '0',
                     'I' or 'L' => '1',
                     'U' => 'V',
+                    '-' => '\0', // tireleri at
                     _ => c
                 };
 
-                if (ALPHABET.IndexOf(mapped) >= 0) sb.Append(mapped);
+                if (mapped != '\0' && ALPHABET.IndexOf(mapped) >= 0) sb.Append(mapped);
             }
 
             return sb.ToString();

@@ -141,6 +141,9 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
+            entity.Property(e => e.AutoRenew)
+                .HasDefaultValue(true)
+                .HasColumnName("auto_renew");
             entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.CreateDate)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
@@ -150,6 +153,8 @@ public partial class MasterContext : DbContext
                 .HasDefaultValue(true)
                 .HasColumnName("is_active");
             entity.Property(e => e.PlanId).HasColumnName("plan_id");
+            entity.Property(e => e.RenewalAttemptCount).HasColumnName("renewal_attempt_count");
+            entity.Property(e => e.RenewalFailedAt).HasColumnName("renewal_failed_at");
 
             entity.HasOne(d => d.Company).WithMany(p => p.CompanySubscriptions)
                 .HasForeignKey(d => d.CompanyId)
@@ -236,12 +241,18 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Id)
                 .UseIdentityAlwaysColumn()
                 .HasColumnName("id");
+            entity.Property(e => e.Description)
+                .HasMaxLength(500)
+                .HasColumnName("description");
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true)
                 .HasColumnName("is_active");
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+            entity.Property(e => e.Price)
+                .HasPrecision(18, 2)
+                .HasColumnName("price");
 
             entity.HasMany(d => d.Modules).WithMany(p => p.Plans)
                 .UsingEntity<Dictionary<string, object>>(

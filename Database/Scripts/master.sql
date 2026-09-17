@@ -29,6 +29,8 @@ CREATE TABLE module (
 CREATE TABLE subscription_plan (
     id INT GENERATED ALWAYS AS IDENTITY,
     name VARCHAR(255) NOT NULL,
+    price DECIMAL(18,2) NOT NULL DEFAULT 0,
+    description VARCHAR(500) NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT pk_subscription_plan PRIMARY KEY (id)
 );
@@ -46,6 +48,9 @@ CREATE TABLE company_subscription (
     company_id INT NOT NULL,
     plan_id INT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
+    auto_renew BOOLEAN NOT NULL DEFAULT TRUE,
+    renewal_failed_at TIMESTAMPTZ NULL,
+    renewal_attempt_count INT NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,   -- "en güncel kayıt" demek, "geçerli" demek değil
     create_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_company_subscription PRIMARY KEY (id),
@@ -151,8 +156,11 @@ INSERT INTO module (module_key, name) VALUES
     ('cost-management', 'Masraf Yönetimi'),
     ('hr', 'İnsan Kaynakları');
 
-INSERT INTO subscription_plan (name) VALUES
-    ('FREE'), ('CMS'), ('HR'), ('FULL');
+INSERT INTO subscription_plan (name, price, description) VALUES
+    ('free', 0, 'Temel özellikler, deneme sürümü'),
+    ('cost-management', 500, 'Sadece Masraf Yönetimi'),
+    ('hr', 750, 'Sadece İnsan Kaynakları'),
+    ('full', 1000, 'Tüm Modüller');
 
 -- FREE hiçbir modüle bağlı değil, o yüzden satırı yok
 INSERT INTO plan_module (plan_id, module_id) VALUES

@@ -1,0 +1,97 @@
+@subBaseUrl = http://localhost:5012/api/Subscription
+
+# Token'ını buraya yapıştır — rolü "SuperAdmin" olan bir kullanıcıyla giriş yapıp aldığın
+# güncel token ile değiştir. "User" rolündeki bir token ile subscribe/renew/cancel/auto-renew
+# istekleri artık 403 Forbidden döner.
+
+@accessToken = BURAYA_SUPERADMIN_TOKENINI_YAPISTIR
+
+# ==========================================
+# SUBSCRIPTION ENDPOINTS
+# ==========================================
+
+# 1. Mevcut Aboneliği Getir (Get Current Subscription)
+GET {{subBaseUrl}}/current
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK):
+# {
+#   "isSuccess": true,
+#   "message": null,
+#   "data": {
+#     "companyPublicId": "c53e820b-...",
+#     "subscriptionPlanId": 2,
+#     "companyName": "Gobito Kurumsal Çözümler",
+#     "subscriptionPlanName": "CMS",
+#     "expiresAt": "2026-10-17T08:00:00Z",
+#     "autoRenew": true,
+#     "subscriptionPlanModules": [
+#       { "moduleKey": "cost-management", "moduleName": "Masraf Yönetimi" }
+#     ]
+#   }
+# }
+
+### 2. Yeni Plana Abone Ol / Plan Değiştir (Subscribe / Change Plan)
+# PlanTypes Enum Değerleri: Free = 1, Cms = 2, Hr = 3, Full = 4
+# Not: [Authorize(Roles = "SuperAdmin")]
+
+POST {{subBaseUrl}}/subscribe
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "planType": 4
+}
+
+# Beklenen Cevap (200 OK): Data içerisinde güncel abonelik detayı (GetCurrentSubscription ile aynı format) dönecektir.
+# Aynı plana tekrar subscribe edilmeye çalışılırsa (200 değil) Fail: "Zaten bu plandasınız." döner.
+# Ücretliden Free'ye direkt geçiş denenirse Fail: "Ücretli bir plandan doğrudan ücretsiz plana geçemezsiniz..." döner.
+
+### 3. Aboneliği Yenile / Süre Uzat (Renew Subscription)
+# Not: [Authorize(Roles = "SuperAdmin")]
+# enableAutoRenew opsiyonel: null gönderilirse mevcut AutoRenew tercihi korunur,
+# true/false gönderilirse açıkça değiştirilir.
+
+POST {{subBaseUrl}}/renew
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "monthsToAdd": 1,
+  "enableAutoRenew": null
+}
+
+# Beklenen Cevap (200 OK): Data içerisinde güncel abonelik detayı dönecektir. (ExpiresAt belirtilen ay kadar ileri atılmış olarak)
+# monthsToAdd 1-24 aralığı dışındaysa Fail: "Eklenecek süre 1 ile 24 ay arasında olmalıdır." döner.
+
+### 4. Aboneliği İptal Et (Cancel Subscription)
+# Not: [Authorize(Roles = "SuperAdmin")]
+# Artık SetAutoRenewAsync(false) çağırıyor.
+
+POST {{subBaseUrl}}/cancel
+Authorization: Bearer {{accessToken}}
+
+# Beklenen Cevap (200 OK): Data içerisinde abonelik detayı dönecektir ancak "autoRenew": false olacaktır.
+# Kullanıcı ExpiresAt tarihine kadar sistemi kullanmaya devam edebilir.
+# Zaten iptal edilmişse Fail: "Abonelik zaten iptal edilmiş (dönem sonunda sonlanacak)." döner.
+
+### 5. Otomatik Yenilemeyi Aç/Kapat (Set Auto-Renew)
+# Not: [Authorize(Roles = "SuperAdmin")]
+# İptali geri almak için: "enabled": true
+
+POST {{subBaseUrl}}/auto-renew
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "enabled": true
+}
+
+# Beklenen Cevap (200 OK): Data içerisinde "autoRenew": true olarak abonelik detayı dönecektir.
+# Süresi zaten dolmuşsa Fail: "Aboneliğinizin süresi dolmuş. Otomatik yenileme yerine yeni bir plan seçmeniz gerekiyor." döner.
+# Zaten aynı durumdaysa (örn. enabled=true iken tekrar true) Fail: "Otomatik yenileme zaten açık." döner.
+
+### 6. Mevcut Planları Listele (Get Available Plans)
+# Not: [Authorize] yok — herkese açık.
+
+GET {{subBaseUrl}}/plans

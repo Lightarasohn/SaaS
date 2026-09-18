@@ -87,6 +87,10 @@ builder.Services.AddHostedService<EmailBackgroundService>();
 builder.Services.AddScoped<IModuleService, ModuleService>();
 builder.Services.AddSingleton<IAuthorizationHandler, ModuleAccessHandler>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<ISubscriptionPaymentProcessor, AlwaysSucceedPaymentProcessor>();
+builder.Services.AddHostedService<EmailBackgroundService>();
+builder.Services.AddHostedService<SubscriptionExpiryBackgroundService>();
 
 // DI (Microservices)
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();

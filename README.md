@@ -1,81 +1,197 @@
+# Multi-Tenant SaaS
+
+Şirketlerin bütçe ve masraf süreçlerini organizasyon birimleri üzerinden yönetebildiği, abonelik tabanlı modül erişimi olan çok kiracılı SaaS uygulaması. Backend ASP.NET Core Web API, frontend Next.js ile geliştirilmiştir. Master verileri ve CMS iş verileri PostgreSQL'de ayrı veritabanlarında tutulur.
+
+> Uygulama şu an tek bir ASP.NET Core API içinde modüler monolit olarak çalışır. `Microservices/CMS` klasör adı bağımsız dağıtılan mikroservis olduğu anlamına gelmez. Gerçek işlevi bulunan modül CMS'dir; HR modülü yalnızca plan/modül kataloğu ve authorization policy düzeyinde tanımlıdır.
+
+## Özellikler
+
+- Tenant/company kaydı, davet koduyla şirkete katılım, e-posta doğrulama ve şirket kullanıcı yönetimi.
+- JWT access token ve refresh token rotasyonu/iptali; parola ve e-posta kurtarma akışları.
+- Şirket rolü ve organizasyon birimi rolüne göre erişim kontrolü.
+- Abonelik planı, plan-modül erişimi, bitiş tarihi ve otomatik yenileme yönetimi.
+- Hiyerarşik organizasyon birimleri, dönemsel bütçeler ve şirket bazlı masraf kategorileri.
+- Tekli/toplu masraf oluşturma ve birim kapsamlı onay/ret akışları.
+- SMTP e-posta bildirimleri ve operasyonel dashboard/widget görünümleri.
+
+## Teknoloji Yığını
+
+| Alan | Teknolojiler |
+| --- | --- |
+| Backend | .NET 10, ASP.NET Core Web API, Entity Framework Core, FluentValidation |
+| Kimlik doğrulama | JWT Bearer, BCrypt, refresh token rotasyonu |
+| Veritabanı | PostgreSQL, Npgsql; ayrı `MasterContext` ve `CMSContext` |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
+| E-posta ve API belgeleri | MailKit/SMTP, OpenAPI, Swagger |
+
 ## Mimari ve Veri Modeli
 
-> Uygulama tek bir ASP.NET Core API içinde modüler monolit olarak çalışır; Next.js tarafındaki API route'ları BFF/proxy görevi görür.
+Next.js API route'ları BFF/proxy katmanı olarak backend'e istek iletir. API, kimlik doğrulama ve abonelik/modül izinlerini doğruladıktan sonra CMS sorgularına tenant filtresi uygular.
 
-### 1. Sistem Bileşenleri
+### Sistem bileşenleri
 
 ![Mimari](docs/diagrams/1-mimari.png)
 
-### 2. İstek Akışı (Kimlik doğrulama → abonelik/modül kontrolü → tenant filtreli sorgu)
+### İstek akışı: kimlik doğrulama, modül yetkisi ve tenant filtresi
 
 ![İstek akışı](docs/diagrams/2-istek-akisi.png)
 
-### 3. Master DB (Kimlik, şirket, abonelik, modül kataloğu)
+### Master DB: kullanıcılar, şirketler, abonelikler ve modüller
 
 ![Master DB ER şeması](docs/diagrams/3-master-er.png)
 
-### 4. CMS DB (Bütçe ve masraf yönetimi)
+Master veritabanının ana tabloları:
+
+| Tablo | Sorumluluk |
+| --- | --- |
+| `company`, `app_user`, `app_role` | Tenant, kullanıcı ve şirket seviyesi roller. |
+| `subscription_plan`, `module`, `plan_module` | Plan kataloğu ve plana dahil modüller. |
+| `company_subscription` | Şirketin abonelik geçmişi, aktif planı, bitiş ve yenileme durumu. |
+| `user_token`, `refresh_token` | Tek kullanımlık doğrulama/kurtarma token'ları ve yenilenebilir oturumlar. |
+
+### CMS DB: bütçe ve masraf yönetimi
 
 ![CMS DB ER şeması](docs/diagrams/4-cms-er.png)
 
-> Not: Master ve CMS ayrı PostgreSQL veritabanlarıdır. CMS tarafındaki `company_id` ve `user_id`, Master'daki kaydın public UUID değerini taşıyan mantıksal referanslardır (veritabanları arası FK yoktur).
+CMS veritabanının ana tabloları:
 
-## Sistemi Ayağa Kaldırmak
+| Tablo | Sorumluluk |
+| --- | --- |
+| `org_unit` | Tenant'a ait hiyerarşik organizasyon birimleri; parent ilişkisi ve path alanı. |
+| `org_unit_role`, `org_unit_user_role` | Birim rolleri ve kullanıcılara verilmiş birim kapsamlı yetkiler. |
+| `budget` | Birim ve ay/yıl bazında toplam ve kullanılan bütçe. |
+| `expense` | Bütçeye bağlı masraf, sahibi, kategori, durum, ret nedeni ve denetim alanları. |
+| `expense_category`, `expense_status` | Tenant'a özel masraf kategorileri ve durum sözlüğü. |
 
-### 1. .NET 10 SDK
+**Veritabanı sınırı:** Master ve CMS ayrı PostgreSQL veritabanlarıdır. CMS tarafındaki `company_id` ve `user_id`, Master'daki kayıtların public UUID değerlerini tutan mantıksal referanslardır; iki veritabanı arasında foreign key kurulmaz. CMS tablolarındaki global EF Core query filter'ları tenant kapsamını uygular; bütçe ve masraflarda silinmiş kayıtlar da varsayılan sorgulardan hariç tutulur.
 
-.NET 10 SDK'yı indirin: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+### Yetkilendirme ve iş kuralları
 
-### 2. Uygulamayı Klonlama
+1. Backend JWT içindeki kullanıcı, rol ve `company_id` claim'lerini doğrular.
+2. CMS endpoint'leri `cost-management` modül policy'sini gerektirir. Erişim, şirketin aktif ve süresi dolmamış aboneliğinin planındaki modüle göre belirlenir.
+3. CMS context'i claim'deki şirket kimliğiyle kurulur; EF Core query filter'ları şirket kapsamını sorgulara uygular.
+4. Servisler şirket rolüne ek olarak ilgili organizasyon birimindeki Manager/Approver/User rollerini denetler.
+5. Masraf onayı CMS veritabanı transaction'ı içinde kaydedilir; onaylanan tutar bütçenin `used_amount` alanına eklenir.
 
-`git clone https://github.com/Lightarasohn/SaaS.git` komutu ile uygulamayı klonlayın.
+### Dashboard analitiği
 
-### 3. Secrets
+Dashboard widget'ları bütçeleri birimlere göre, masrafları kategorilere göre, kullanıcı masraflarını ve bekleyen onayları görünür kılar. Temel finansal göstergeler:
 
-Proje .NET Secrets yerine appsettings.json kullanmakta. Projedeki appsettings.json yapısı:
+| Gösterge | Hesaplama |
+| --- | --- |
+| Kullanılan bütçe | `budget.used_amount` |
+| Kalan bütçe | `budget.total_amount - budget.used_amount` |
+| Bütçe kullanım oranı | `used_amount / total_amount * 100` (toplam bütçe sıfır değilse) |
+| Masraf iş yükü | Masrafların durum, kategori, dönem ve organizasyon birimine göre sayısı/tutarı |
+
+Bu, uygulama içi operasyonel analitiktir; ayrı bir veri ambarı veya BI pipeline'ı değildir. Masrafın maliyet gerçekleşmesi olarak raporlanıp raporlanmayacağına göre onaylı ve bekleyen tutarlar ayrı gösterilmelidir.
+
+## Gereksinimler
+
+- .NET 10 SDK
+- PostgreSQL
+- Node.js 20.9 veya üzeri ve npm
+
+## Yerelde Çalıştırma
+
+### 1. Depoları klonlayın
+
+Backend ve frontend ayrı Git depolarıdır:
+
+```bash
+git clone https://github.com/Lightarasohn/SaaS.git
+git clone https://github.com/Lightarasohn/saas-front-next.git
 ```
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
-  "FrontendBaseUrl": "<FrontendBaseUrl>",
-  "ConnectionStrings": {
-    "MasterConnection": "<MasterDBConnectionString>",
-    "CMSConnection": "<CMSDBConnectionString>"
-  },
-  "EmailSettings": {
-    "SystemName": "<GoogleName>",
-    "SystemEmail": "<SystemEmail>",
-    "AppPassword": "<GoogleAppPassword>",
-    "SmtpServer": "smtp.gmail.com",
-    "SmtpPort": 587
-  },
-  "JwtSettings": {
-  "Issuer": "<Issuer>",
-  "Audience": "<Audience>",
-  "SigningKey": "<SigningKey>", 
-  "AccessTokenMinutes": <minutes>,
-  "RefreshTokenDays": <days>
-  },
-  "CRUDSettings": {
-    "MaxCreateRange": 50,
-    "MaxUpdateRange": 100
-  }
-}
+
+### 2. PostgreSQL veritabanlarını hazırlayın
+
+İki boş veritabanı oluşturun. Örnek adlar `saas_master` ve `saas_cms`:
+
+```bash
+createdb saas_master
+createdb saas_cms
 ```
-Kod bloğundaki "<>" ile belirlenmiş bölümlere kendi ayarlarınızı yazmanız gerekmektedir.
 
-> Not: Ben projedeki e-posta servisi için google smtp sunucusunu kullandım.
+PowerShell'de veya `createdb` komutunun PATH'te olmadığı kurulumlarda veritabanlarını PostgreSQL aracıyla oluşturabilirsiniz. Sonra, repo kökünden aşağıdaki betikleri ilgili veritabanlarına uygulayın:
 
-### 3. Çalıştırma
+```bash
+psql -h localhost -U YOUR_DB_USER -d saas_master -f Database/Scripts/master.sql
+psql -h localhost -U YOUR_DB_USER -d saas_cms -f Database/Scripts/cms.sql
+```
 
-Sırasıyla:
-- `dotnet restore`
-- `dotnet build`
-- Build başarılı olduğunda `dotnet run`
+> **Önemli:** `master.sql` ve `cms.sql` başında tabloları silip yeniden oluşturan `DROP TABLE` komutları vardır. Bu betikleri yalnızca boş/atılabilir geliştirme veritabanında çalıştırın; mevcut veritabanına uygulamayın ve önemli veriler için yedek almadan çalıştırmayın. `master_alter.sql` yeni kurulum betiği değildir; bazı sütun/index'ler `master.sql` içinde zaten bulunduğu için mevcut veritabanında ayrıca çalıştırılması çakışma oluşturabilir.
 
-komutları ile uygulamayı ayağa kaldırabilirsiniz.
+### 3. Backend ayarlarını güvenli biçimde tanımlayın
+
+Gerçek connection string, SMTP parolası veya JWT signing key'i `appsettings.json` içine yazmayın ve Git'e göndermeyin. Yerel geliştirme için backend klasöründe .NET User Secrets kullanın. İlk komut `SaaS.csproj` için bir User Secrets kimliği oluşturur:
+
+```bash
+cd SaaS
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:MasterConnection" "Host=localhost;Port=5432;Database=saas_master;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD"
+dotnet user-secrets set "ConnectionStrings:CMSConnection" "Host=localhost;Port=5432;Database=saas_cms;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD"
+dotnet user-secrets set "FrontendBaseUrl" "http://localhost:3000"
+dotnet user-secrets set "JwtSettings:Issuer" "FullSaaS"
+dotnet user-secrets set "JwtSettings:Audience" "FullSaaS.Frontend"
+dotnet user-secrets set "JwtSettings:SigningKey" "REPLACE_WITH_RANDOM_SECRET_AT_LEAST_32_BYTES"
+dotnet user-secrets set "JwtSettings:AccessTokenMinutes" "15"
+dotnet user-secrets set "JwtSettings:RefreshTokenDays" "7"
+```
+
+`YOUR_DB_USER`, `YOUR_DB_PASSWORD` ve JWT signing key örneklerini kendi yerel değerlerinle değiştir. Uygulama signing key'in en az 32 byte olmasını bekler. User Secrets yalnızca geliştirme amaçlıdır ve şifreli bir secret store değildir; production/deployment ortamında secret manager veya korumalı ortam değişkenleri kullanın.
+
+E-posta doğrulama ve parola kurtarma e-postalarını kullanacaksanız SMTP bilgilerini de secret olarak ekleyin. Gmail kullanılıyorsa hesap parolası yerine sağlayıcının uygulama parolası gerekir:
+
+```bash
+dotnet user-secrets set "EmailSettings:SystemName" "YOUR_SENDER_NAME"
+dotnet user-secrets set "EmailSettings:SystemEmail" "YOUR_SENDER_EMAIL"
+dotnet user-secrets set "EmailSettings:AppPassword" "YOUR_SMTP_APP_PASSWORD"
+dotnet user-secrets set "EmailSettings:SmtpServer" "smtp.gmail.com"
+dotnet user-secrets set "EmailSettings:SmtpPort" "587"
+```
+
+### 4. Backend'i başlatın
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --launch-profile http
+```
+
+API varsayılan olarak `http://localhost:5012` adresinde başlar. Development ortamında Swagger UI: [http://localhost:5012/swagger](http://localhost:5012/swagger).
+
+### 5. Frontend'i başlatın
+
+Diğer terminalde frontend klasörüne geçin. `.template.env.local` dosyasını `.env.local` olarak kopyalayın ve sunucu tarafında kullanılan backend adresini tanımlayın:
+
+```dotenv
+API_URL=http://localhost:5012
+```
+
+Ardından:
+
+```bash
+cd saas-front-next
+npm ci
+npm run dev
+```
+
+Frontend [http://localhost:3000](http://localhost:3000) adresinde açılır. `API_URL`, Next.js API route'ları ve middleware tarafından sunucu tarafında kullanılır. Backend'in geliştirme CORS ayarı `http://localhost:3000` origin'ine izin verir.
+
+## API Alanları
+
+- `/api/auth/*`: kayıt, giriş/çıkış, token yenileme, hesap doğrulama ve parola/e-posta işlemleri.
+- `/api/subscription/*`: plan listesi, mevcut abonelik, plana geçiş/yenileme ve otomatik yenileme.
+- `/api/modules`: tenant için etkin modüller.
+- CMS controller'ları: bütçe, masraf, masraf kategorisi ve organizasyon birimi işlemleri.
+- `/api/UserManagemet`: şirket kullanıcılarını listeleme ve rol güncelleme.
+
+İstek/yanıt örnekleri backend deposundaki `SaaS.*.http` dosyalarında bulunur. Swagger yalnızca Development ortamında etkinleştirilir.
+
+## Mevcut Sınırlar ve Üretim Notları
+
+- Gerçek ödeme kuruluşu entegrasyonu yoktur. `AlwaysSucceedPaymentProcessor` tahsilat yapmadan başarılı dönen geçici bir uygulamadır; ücretli aboneliklerin gerçek tahsilatını sağlamaz.
+- HR modülü katalog ve policy seviyesinde yer alır; HR iş süreçleri uygulanmış değildir.
+- E-posta kuyruğu uygulama belleğinde tutulan sınırlı bir `Channel` kuyruğudur; servis yeniden başlarsa bekleyen e-postalar kalıcı olarak saklanmaz.
+- CMS ile Master arasındaki UUID referansları iki veritabanı arasında foreign key oluşturmaz; çapraz veritabanı tutarlılığı uygulama katmanında korunur.
+- Global query filter'lara ek olarak servis yetkilendirmeleri bulunur. Yeni tenant tablolarında tenant alanı, filtre, indeks ve tenant izolasyonu testleri birlikte ele alınmalıdır.

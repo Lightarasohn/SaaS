@@ -14,6 +14,38 @@
 - Tekli/toplu masraf oluşturma ve birim kapsamlı onay/ret akışları.
 - SMTP e-posta bildirimleri ve operasyonel dashboard/widget görünümleri.
 
+## Ekran Görüntüleri
+
+Arayüz ekran görüntüleri frontend deposundaki `docs/screenshots/` klasöründe tutulur. Görselleri oraya eklediğinizde burada da görüntülenir.
+
+### Landing Page
+
+![Landing Page](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/landing-page.png)
+
+### Dashboard
+
+![Dashboard ve widget'lar](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/dashboard.png)
+
+### Abonelik
+
+![Abonelik sayfası](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/subscription.png)
+
+### Profil
+
+![Profil sayfası](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/profile.png)
+
+### Masraflar
+
+![Masraflar sayfası](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/expenses.png)
+
+### Bütçeler
+
+![Bütçeler sayfası](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/budgets.png)
+
+### Birimler
+
+![Organizasyon birimleri sayfası](https://raw.githubusercontent.com/Lightarasohn/saas-front-next/master/docs/screenshots/org-units.png)
+
 ## Teknoloji Yığını
 
 | Alan | Teknolojiler |
